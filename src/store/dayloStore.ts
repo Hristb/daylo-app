@@ -5,6 +5,7 @@ interface DayloStore {
   currentEntry: Partial<DailyEntry>
   selectedActivities: Activity[]
   totalMinutes: number
+  isModalOpen: boolean
   
   addActivity: (activity: Activity) => void
   removeActivity: (id: string) => void
@@ -13,6 +14,7 @@ interface DayloStore {
   setReflection: (reflection: Partial<DailyEntry['reflection']>) => void
   saveEntry: () => void
   resetEntry: () => void
+  setModalOpen: (isOpen: boolean) => void
 }
 
 export const useDayloStore = create<DayloStore>((set, get) => ({
@@ -26,6 +28,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   },
   selectedActivities: [],
   totalMinutes: 0,
+  isModalOpen: false,
 
   addActivity: (activity) => {
     set((state) => {
@@ -132,5 +135,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       selectedActivities: [],
       totalMinutes: 0,
     })
+  },
+
+  setModalOpen: (isOpen: boolean) => {
+    set({ isModalOpen: isOpen })
   },
 }))

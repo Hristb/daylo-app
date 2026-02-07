@@ -21,6 +21,7 @@ export default function Home() {
     updateActivityFacets,
     setReflection,
     saveEntry,
+    setModalOpen,
   } = useDayloStore()
 
   const [selectedForEdit, setSelectedForEdit] = useState<ActivityOption | null>(null)
@@ -47,6 +48,7 @@ export default function Home() {
       setTempDuration(activityOption.defaultDuration)
       setTempNotes('')
     }
+    setModalOpen(true)
   }
 
   const handleSaveActivity = () => {
@@ -80,6 +82,7 @@ export default function Home() {
 
     // Cerrar modal
     setSelectedForEdit(null)
+    setModalOpen(false)
     setTempFacets({})
     setTempNotes('')
   }
@@ -91,6 +94,7 @@ export default function Home() {
       removeActivity(existing.id)
     }
     setSelectedForEdit(null)
+    setModalOpen(false)
   }
 
   const handleSave = async () => {
@@ -182,7 +186,10 @@ export default function Home() {
       {/* Activity Detail Modal */}
       <ActivityModal
         isOpen={!!selectedForEdit}
-        onClose={() => setSelectedForEdit(null)}
+        onClose={() => {
+          setSelectedForEdit(null)
+          setModalOpen(false)
+        }}
         color={selectedForEdit?.color || '#C4E5FF'}
         title={selectedForEdit?.label || ''}
       >

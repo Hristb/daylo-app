@@ -1,19 +1,25 @@
 import { NavLink } from 'react-router-dom'
 import { Home, BarChart3 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useDayloStore } from '../store/dayloStore'
 
 export default function Navigation() {
+  const isModalOpen = useDayloStore((state) => state.isModalOpen)
   const navItems = [
     { path: '/hoy', icon: Home, label: 'Hoy' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
   ]
 
   return (
-    <motion.nav
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/80 border-t border-white/50 shadow-lg"
-    >
+    <AnimatePresence>
+      {!isModalOpen && (
+        <motion.nav
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          exit={{ y: 100 }}
+          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/80 border-t border-white/50 shadow-lg"
+        >
       <div className="max-w-2xl mx-auto px-4">
         <div className="flex items-center justify-around py-3">
           {navItems.map((item) => (
@@ -51,6 +57,8 @@ export default function Navigation() {
           ))}
         </div>
       </div>
-    </motion.nav>
+        </motion.nav>
+      )}
+    </AnimatePresence>
   )
 }
