@@ -1,11 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Layout from './components/Layout'
 
 function App() {
   return (
-    <BrowserRouter basename="/daylo-app">
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/hoy" replace />} />
@@ -13,7 +13,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 

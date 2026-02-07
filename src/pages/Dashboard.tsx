@@ -18,11 +18,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Cargar datos de localStorage
-    const storedEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
-    setEntries(storedEntries)
+    const loadData = () => {
+      const storedEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+      setEntries(storedEntries)
 
-    if (storedEntries.length > 0) {
-      calculateStats(storedEntries)
+      if (storedEntries.length > 0) {
+        calculateStats(storedEntries)
+      }
+    }
+    
+    loadData()
+    
+    // Recargar cuando la página se vuelve visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', loadData)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', loadData)
     }
   }, [])
 

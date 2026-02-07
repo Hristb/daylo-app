@@ -73,12 +73,53 @@ export default function Home() {
       })
     }
 
-    // Guardar temporalmente en localStorage
-    const currentState = {
-      activities: selectedActivities,
-      date: new Date().toISOString(),
-    }
-    localStorage.setItem('daylo-temp-entry', JSON.stringify(currentState))
+    // Guardar en localStorage para el dashboard
+    // Esperar un momento para que el store se actualice
+    setTimeout(() => {
+      const today = new Date().toISOString().split('T')[0]
+      const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+      
+      // Buscar entrada de hoy
+      const todayIndex = entries.findIndex((e: any) => 
+        new Date(e.date).toISOString().split('T')[0] === today
+      )
+      
+      const updatedActivities = existing 
+        ? selectedActivities.map(a => a.icon === selectedForEdit.id 
+            ? { ...a, duration: tempDuration, facets: tempFacets, notes: tempNotes }
+            : a)
+        : [...selectedActivities, {
+            id: Date.now().toString(),
+            icon: selectedForEdit.id,
+            label: selectedForEdit.label,
+            duration: tempDuration,
+            color: selectedForEdit.color,
+            facets: tempFacets,
+            notes: tempNotes,
+          }]
+      
+      if (todayIndex >= 0) {
+        // Actualizar entrada de hoy
+        entries[todayIndex] = {
+          ...entries[todayIndex],
+          activities: updatedActivities,
+          date: new Date().toISOString(),
+        }
+      } else {
+        // Crear nueva entrada para hoy
+        entries.push({
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+          activities: updatedActivities,
+          reflection: {
+            highlights: '',
+            mood: '😊',
+          },
+        })
+      }
+      
+      localStorage.setItem('daylo-entries', JSON.stringify(entries))
+    }, 100)
 
     // Cerrar modal
     setSelectedForEdit(null)
@@ -92,6 +133,25 @@ export default function Home() {
     const existing = selectedActivities.find(a => a.icon === selectedForEdit.id)
     if (existing) {
       removeActivity(existing.id)
+      
+      // Actualizar localStorage también
+      setTimeout(() => {
+        const today = new Date().toISOString().split('T')[0]
+        const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+        
+        const todayIndex = entries.findIndex((e: any) => 
+          new Date(e.date).toISOString().split('T')[0] === today
+        )
+        
+        if (todayIndex >= 0) {
+          const updatedActivities = selectedActivities.filter(a => a.id !== existing.id)
+          entries[todayIndex] = {
+            ...entries[todayIndex],
+            activities: updatedActivities,
+          }
+          localStorage.setItem('daylo-entries', JSON.stringify(entries))
+        }
+      }, 100)
     }
     setSelectedForEdit(null)
     setModalOpen(false)
