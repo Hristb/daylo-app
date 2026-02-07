@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDayloStore } from '../store/dayloStore'
 import { ACTIVITY_OPTIONS, MOODS, ACTIVITY_FACETS } from '../utils/constants'
 import ActivityCard from '../components/cards/ActivityCard'
@@ -7,8 +7,9 @@ import TimeSlider from '../components/sliders/TimeSlider'
 import ActivityModal from '../components/modals/ActivityModal'
 import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
-import { Sparkles, MessageCircle, Save } from 'lucide-react'
+import { Sparkles, MessageCircle, Save, Cloud, CloudOff } from 'lucide-react'
 import { ActivityOption } from '../types'
+import { saveDailyEntry, getTodayEntry } from '../services/firebaseService'
 
 export default function Home() {
   const { 
@@ -31,6 +32,25 @@ export default function Home() {
   const [showReflection, setShowReflection] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced')
+
+  // Cargar datos de Firebase al iniciar
+  useEffect(() => {
+    const loadTodayData = async () => {
+      try {
+        const todayData = await getTodayEntry()
+        if (todayData && todayData.activities) {
+          // Cargar actividades del día desde Firebase
+          todayData.activities.forEach(activity => {
+            addActivity(activity)
+          })
+        }
+      } catch (error) {
+        console.error('Error cargando datos de hoy:', error)
+      }
+    }
+    loadTodayData()
+  }, [])
 
   const handleActivityClick = (activityOption: ActivityOption) => {
     const existing = selectedActivities.find(a => a.icon === activityOption.id)
@@ -73,16 +93,11 @@ export default function Home() {
       })
     }
 
-    // Guardar en localStorage para el dashboard
-    // Esperar un momento para que el store se actualice
-    setTimeout(() => {
+    // Guardar en Firebase y localStorage
+    setTimeout(async () => {
+      setSyncStatus('syncing')
       const today = new Date().toISOString().split('T')[0]
       const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
-      
-      // Buscar entrada de hoy
-      const todayIndex = entries.findIndex((e: any) => 
-        new Date(e.date).toISOString().split('T')[0] === today
-      )
       
       const updatedActivities = existing 
         ? selectedActivities.map(a => a.icon === selectedForEdit.id 
@@ -98,27 +113,37 @@ export default function Home() {
             notes: tempNotes,
           }]
       
-      if (todayIndex >= 0) {
-        // Actualizar entrada de hoy
-        entries[todayIndex] = {
-          ...entries[todayIndex],
-          activities: updatedActivities,
-          date: new Date().toISOString(),
-        }
-      } else {
-        // Crear nueva entrada para hoy
-        entries.push({
-          id: Date.now().toString(),
-          date: new Date().toISOString(),
-          activities: updatedActivities,
-          reflection: {
-            highlights: '',
-            mood: '😊',
-          },
-        })
+      const todayIndex = entries.findIndex((e: any) => 
+        new Date(e.date).toISOString().split('T')[0] === today
+      )
+      
+      const entryData = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        activities: updatedActivities,
+        reflection: {
+          highlights: '',
+          mood: '😊',
+        },
       }
       
+      if (todayIndex >= 0) {
+        entries[todayIndex] = entryData
+      } else {
+        entries.push(entryData)
+      }
+      
+      // Guardar en localStorage
       localStorage.setItem('daylo-entries', JSON.stringify(entries))
+      
+      // Guardar en Firebase
+      try {
+        await saveDailyEntry(entryData)
+        setSyncStatus('synced')
+      } catch (error) {
+        console.error('Error guardando en Firebase:', error)
+        setSyncStatus('offline')
+      }
     }, 100)
 
     // Cerrar modal
@@ -190,8 +215,27 @@ export default function Home() {
         >
           ¿Cómo fue tu día?
         </motion.h2>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-600 text-sm flex items-center justify-center gap-2">
           Selecciona las actividades que realizaste hoy
+          {syncStatus === 'synced' && (
+            <span className="text-green-600 flex items-center gap-1 text-xs">
+              <Cloud size={14} /> Sincronizado
+            </span>
+          )}
+          {syncStatus === 'syncing' && (
+            <motion.span 
+              className="text-blue-600 flex items-center gap-1 text-xs"
+              animate={{ opacity: [1, 0.5, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              <Cloud size={14} /> Guardando...
+            </motion.span>
+          )}
+          {syncStatus === 'offline' && (
+            <span className="text-orange-600 flex items-center gap-1 text-xs">
+              <CloudOff size={14} /> Sin conexión
+            </span>
+          )}
         </p>
       </motion.div>
 

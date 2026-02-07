@@ -2,8 +2,9 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { DailyEntry } from '../types'
-import { Calendar, TrendingUp, Clock, Smile } from 'lucide-react'
+import { Calendar, TrendingUp, Clock, Smile, Cloud } from 'lucide-react'
 import { formatMinutes } from '../utils/constants'
+import { getAllUserEntries } from '../services/firebaseService'
 
 export default function Dashboard() {
   const [entries, setEntries] = useState<DailyEntry[]>([])
@@ -17,13 +18,27 @@ export default function Dashboard() {
   })
 
   useEffect(() => {
-    // Cargar datos de localStorage
-    const loadData = () => {
-      const storedEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
-      setEntries(storedEntries)
-
-      if (storedEntries.length > 0) {
-        calculateStats(storedEntries)
+    // Cargar datos de localStorage y Firebase
+    const loadData = async () => {
+      // Primero cargar de localStorage (más rápido)
+      const localEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+      setEntries(localEntries)
+      
+      if (localEntries.length > 0) {
+        calculateStats(localEntries)
+      }
+      
+      // Luego cargar de Firebase (más completo)
+      try {
+        const firebaseEntries = await getAllUserEntries()
+        if (firebaseEntries.length > 0) {
+          setEntries(firebaseEntries)
+          calculateStats(firebaseEntries)
+          // Actualizar localStorage con datos de Firebase
+          localStorage.setItem('daylo-entries', JSON.stringify(firebaseEntries))
+        }
+      } catch (error) {
+        console.error('Error cargando datos de Firebase:', error)
       }
     }
     
