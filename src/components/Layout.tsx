@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom'
 import Navigation from './Navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
-import { User, X } from 'lucide-react'
+import { User } from 'lucide-react'
 
 export default function Layout() {
   const [showWelcome, setShowWelcome] = useState(false)
