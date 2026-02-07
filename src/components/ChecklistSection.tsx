@@ -31,10 +31,19 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
         placeholder: 'Ej: Terminar reporte, hacer ejercicio...',
       }
     } else if (timeContext === 'afternoon') {
-      return {
-        title: '🎯 ¿Qué lograste hoy?',
-        subtitle: 'Marca lo que ya completaste',
-        placeholder: 'Ej: Completé el proyecto...',
+      // Si no hay tareas, pregunta diferente
+      if (tasks.length === 0) {
+        return {
+          title: '📋 ¿Qué hiciste hoy?',
+          subtitle: 'Registra las cosas que realizaste',
+          placeholder: 'Ej: Reunión con equipo, almorzar con amigos...',
+        }
+      } else {
+        return {
+          title: '🎯 ¿Qué lograste hoy?',
+          subtitle: 'Marca lo que ya completaste',
+          placeholder: 'Ej: Completé el proyecto...',
+        }
       }
     } else {
       return {

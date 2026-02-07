@@ -3,9 +3,9 @@ import { ActivityOption, ActivityFacet } from '../types'
 export const ACTIVITY_OPTIONS: ActivityOption[] = [
   {
     id: 'work',
-    label: 'Trabajo',
+    label: 'Productividad',
     color: '#C4E5FF',
-    defaultDuration: 480,
+    defaultDuration: 360,
   },
   {
     id: 'study',

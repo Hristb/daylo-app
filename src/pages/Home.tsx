@@ -9,8 +9,8 @@ import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
 import ChecklistSection from '../components/ChecklistSection'
 import DiarySection from '../components/DiarySection'
-import { Sparkles, MessageCircle, Save, Cloud, CloudOff } from 'lucide-react'
-import { ActivityOption } from '../types'
+import { Sparkles, MessageCircle, Cloud, CloudOff } from 'lucide-react'
+import { ActivityOption, ActivityFacet } from '../types'
 import { saveDailyEntry, getTodayEntry } from '../services/firebaseService'
 
 // Función para obtener el contexto temporal del día
@@ -44,6 +44,8 @@ export default function Home() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced')
   const [timeContext] = useState<'morning' | 'afternoon' | 'evening'>(getTimeContext())
+  // FIXED: Fijar orden de preguntas cuando se abre el modal (no cambiar en cada render)
+  const [shuffledFacets, setShuffledFacets] = useState<ActivityFacet[]>([])
 
   // Cargar datos de Firebase al iniciar
   useEffect(() => {
@@ -65,6 +67,10 @@ export default function Home() {
 
   const handleActivityClick = (activityOption: ActivityOption) => {
     const existing = selectedActivities.find(a => a.icon === activityOption.id)
+    
+    // FIXED: Generar orden aleatorio UNA SOLA VEZ al abrir el modal
+    const facetsForActivity = getShuffledFacets(activityOption.id)
+    setShuffledFacets(facetsForActivity)
     
     if (existing) {
       // Si ya existe, abrir para editar
@@ -209,7 +215,8 @@ export default function Home() {
   }
 
   const canProceed = selectedActivities.length > 0
-  const facets = selectedForEdit ? getShuffledFacets(selectedForEdit.id) : []
+  // FIXED: Usar facets fijas que se establecieron al abrir el modal
+  const facets = shuffledFacets
 
   // Mensaje contextual del Hero según la hora
   const getHeroMessage = () => {
@@ -287,7 +294,7 @@ export default function Home() {
       >
         <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
           <Sparkles size={20} className="text-pastel-purple" />
-          Mis actividades
+          ¿Qué hiciste hoy?
         </h3>
         
         <div className="grid grid-cols-3 gap-3">
@@ -416,7 +423,7 @@ export default function Home() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                 >
-                  🗑️ Eliminar
+                  Borrar
                 </motion.button>
               )}
               <motion.button
@@ -432,8 +439,7 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <Save size={28} strokeWidth={2.5} />
-                <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? '💾 Actualizar Actividad' : '✨ Guardar Actividad'}</span>
+                <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? 'Actualizar' : 'Guardar'}</span>
               </motion.button>
             </div>
           </div>
