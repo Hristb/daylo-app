@@ -57,53 +57,67 @@ export const ACTIVITY_OPTIONS: ActivityOption[] = [
   },
 ]
 
-// Preguntas únicas por actividad - sin patrones repetitivos
+// Preguntas optimizadas por actividad - Análisis basado en usuarios diarios
 export const ACTIVITY_FACETS: Record<string, ActivityFacet[]> = {
   work: [
-    { id: 'goals_achieved', label: '¿Lograste tus objetivos?', type: 'boolean', emoji: '🎯' },
-    { id: 'distracted', label: '¿Te costó concentrarte?', type: 'boolean', emoji: '🤔' },
+    { id: 'progress', label: '¿Avanzaste en algo importante?', type: 'boolean', emoji: '⭐' },
+    { id: 'control', label: '¿Te sentiste en control?', type: 'boolean', emoji: '🎮' },
     { id: 'work_value', label: '¿Valor de lo realizado?', type: 'rating', emoji: '💎' },
   ],
   study: [
     { id: 'learned_new', label: '¿Aprendiste algo nuevo?', type: 'boolean', emoji: '💡' },
-    { id: 'need_review', label: '¿Necesitas repasar?', type: 'boolean', emoji: '📚' },
-    { id: 'material_clarity', label: '¿Claridad del material?', type: 'rating', emoji: '🔍' },
+    { id: 'can_explain', label: '¿Podrías explicarlo?', type: 'boolean', emoji: '🗣️' },
+    { id: 'usefulness', label: '¿Qué tan útil fue?', type: 'rating', emoji: '🎯' },
   ],
   home: [
-    { id: 'space_improved', label: '¿Mejoraste tu espacio?', type: 'boolean', emoji: '✨' },
-    { id: 'effort_worth', label: '¿Valió la pena?', type: 'rating', emoji: '⚖️' },
-    { id: 'energy_left', label: '¿Te sobró energía?', type: 'boolean', emoji: '🔋' },
+    { id: 'space_better', label: '¿Tu espacio está mejor?', type: 'boolean', emoji: '🏡' },
+    { id: 'did_necessary', label: '¿Hiciste lo necesario?', type: 'boolean', emoji: '✔️' },
+    { id: 'how_feel', label: '¿Cómo te sientes ahora?', type: 'rating', emoji: '💭' },
   ],
   exercise: [
-    { id: 'pushed_limits', label: '¿Superaste límites?', type: 'boolean', emoji: '💪' },
+    { id: 'healthy_challenge', label: '¿Te desafiaste sanamente?', type: 'boolean', emoji: '🎯' },
     { id: 'pain_discomfort', label: '¿Dolor o molestia?', type: 'boolean', emoji: '🩹' },
-    { id: 'performance', label: '¿Rendimiento físico?', type: 'rating', emoji: '🏃' },
+    { id: 'enjoyed', label: '¿Disfrutaste la actividad?', type: 'boolean', emoji: '🎉' },
   ],
   social: [
     { id: 'authentic', label: '¿Conversación auténtica?', type: 'boolean', emoji: '💬' },
     { id: 'emotional_impact', label: '¿Impacto emocional?', type: 'rating', emoji: '❤️' },
-    { id: 'would_repeat', label: '¿Repetirías esto?', type: 'boolean', emoji: '🔄' },
+    { id: 'added_value', label: '¿Agregó valor a tu día?', type: 'boolean', emoji: '✨' },
   ],
   hobbies: [
     { id: 'lost_track_time', label: '¿Perdiste noción del tiempo?', type: 'boolean', emoji: '⏰' },
-    { id: 'creation_quality', label: '¿Calidad de tu creación?', type: 'rating', emoji: '🎨' },
-    { id: 'want_continue', label: '¿Quieres continuar mañana?', type: 'boolean', emoji: '🚀' },
+    { id: 'enjoyed_process', label: '¿Disfrutaste el proceso?', type: 'boolean', emoji: '😊' },
+    { id: 'recharged', label: '¿Te recargó energía?', type: 'boolean', emoji: '⚡' },
   ],
   food: [
-    { id: 'conscious_choices', label: '¿Elecciones conscientes?', type: 'boolean', emoji: '🧠' },
+    { id: 'nourished_well', label: '¿Te nutriste bien?', type: 'boolean', emoji: '🥗' },
     { id: 'taste_quality', label: '¿Sabor y presentación?', type: 'rating', emoji: '😋' },
-    { id: 'any_regrets', label: '¿Te arrepientes de algo?', type: 'boolean', emoji: '🤷' },
+    { id: 'listened_body', label: '¿Escuchaste tu cuerpo?', type: 'boolean', emoji: '💚' },
   ],
   sleep: [
     { id: 'hours_amount', label: '¿Cantidad de horas?', type: 'rating', emoji: '⏱️' },
-    { id: 'had_dreams', label: '¿Soñaste algo?', type: 'boolean', emoji: '🌙' },
+    { id: 'slept_deeply', label: '¿Dormiste profundamente?', type: 'boolean', emoji: '💤' },
     { id: 'ready_for_day', label: '¿Listo para el día?', type: 'boolean', emoji: '☀️' },
   ],
   health: [
-    { id: 'addressed_symptoms', label: '¿Atendiste síntomas?', type: 'boolean', emoji: '🩺' },
-    { id: 'improvement', label: '¿Mejora desde ayer?', type: 'rating', emoji: '📈' },
-    { id: 'need_help', label: '¿Necesitas ayuda profesional?', type: 'boolean', emoji: '👨‍⚕️' },
+    { id: 'physical_feeling', label: '¿Cómo te sientes físicamente?', type: 'rating', emoji: '💪' },
+    { id: 'health_stable', label: '¿Tu salud está estable?', type: 'boolean', emoji: '📊' },
+    { id: 'did_something', label: '¿Hiciste algo por tu salud?', type: 'boolean', emoji: '🌱' },
   ],
+}
+
+// Función para obtener facets en orden aleatorio
+export const getShuffledFacets = (activityId: string): ActivityFacet[] => {
+  const facets = ACTIVITY_FACETS[activityId] || []
+  const shuffled = [...facets]
+  
+  // Fisher-Yates shuffle algorithm
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  
+  return shuffled
 }
 
 export const MOODS = [

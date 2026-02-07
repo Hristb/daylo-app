@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { useDayloStore } from '../store/dayloStore'
-import { ACTIVITY_OPTIONS, MOODS, ACTIVITY_FACETS } from '../utils/constants'
+import { ACTIVITY_OPTIONS, MOODS, getShuffledFacets } from '../utils/constants'
 import ActivityCard from '../components/cards/ActivityCard'
 import TimeSlider from '../components/sliders/TimeSlider'
 import ActivityModal from '../components/modals/ActivityModal'
@@ -198,7 +198,7 @@ export default function Home() {
   }
 
   const canProceed = selectedActivities.length > 0
-  const facets = selectedForEdit ? ACTIVITY_FACETS[selectedForEdit.id] || [] : []
+  const facets = selectedForEdit ? getShuffledFacets(selectedForEdit.id) : []
 
   return (
     <div className="space-y-6 pb-8">
