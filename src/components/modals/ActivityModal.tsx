@@ -36,12 +36,11 @@ export default function ActivityModal({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
-            style={{ maxHeight: '85vh' }}
+            className="fixed inset-x-0 bottom-0 z-50 flex flex-col max-h-[85vh]"
           >
             <div 
-              className="bg-white rounded-t-3xl shadow-2xl flex flex-col h-full"
-              style={{ borderTopColor: color, borderTopWidth: '4px' }}
+              className="bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
+              style={{ borderTopColor: color, borderTopWidth: '4px', height: '100%' }}
             >
               {/* Handle Bar */}
               <div className="flex justify-center pt-3 pb-2">
@@ -62,7 +61,7 @@ export default function ActivityModal({
               </div>
 
               {/* Content */}
-              <div className="overflow-y-auto flex-1 pb-24">
+              <div className="overflow-y-auto flex-1 pb-32 overscroll-contain">
                 {children}
               </div>
             </div>

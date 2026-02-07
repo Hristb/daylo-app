@@ -293,16 +293,6 @@ export default function Home() {
                 <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? '💾 Actualizar Actividad' : '✨ Guardar Actividad'}</span>
               </motion.button>
             </div>
-            
-            {/* Indicador visual de guardado */}
-            <motion.p 
-              className="text-center text-xs text-gray-500 mt-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              💡 Los datos se guardan automáticamente en tu navegador
-            </motion.p>
           </div>
         </div>
       </ActivityModal>
