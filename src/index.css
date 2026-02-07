@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-pastel-pink/20 via-pastel-blue/20 to-pastel-purple/20;
+    @apply min-h-screen font-sans antialiased;
+  }
+}
+
+@layer components {
+  .daylo-card {
+    @apply bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg p-6 border border-white/50;
+  }
+  
+  .daylo-button {
+    @apply px-6 py-3 rounded-full font-semibold transition-all duration-300 
+           hover:scale-105 active:scale-95 shadow-md;
+  }
+  
+  .daylo-button-primary {
+    @apply daylo-button bg-gradient-to-r from-pastel-pink to-pastel-purple 
+           text-gray-700 hover:shadow-xl;
+  }
+  
+  .daylo-icon-card {
+    @apply relative flex flex-col items-center justify-center p-4 rounded-2xl
+           transition-all duration-300 cursor-pointer
+           hover:scale-105 active:scale-95;
+  }
+  
+  .daylo-icon-card.selected {
+    @apply ring-4 ring-offset-2 shadow-xl;
+  }
+}
