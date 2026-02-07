@@ -2,7 +2,6 @@ import { motion } from 'framer-motion'
 import { 
   Briefcase, 
   Home as HomeIcon, 
-  Bus, 
   Dumbbell, 
   Users, 
   Book, 

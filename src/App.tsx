@@ -5,7 +5,7 @@ import Layout from './components/Layout'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/daylo-app">
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/hoy" replace />} />
