@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Activity, DailyEntry } from '../types'
+import { Activity, DailyEntry, Task } from '../types'
 
 interface DayloStore {
   currentEntry: Partial<DailyEntry>
@@ -12,6 +12,10 @@ interface DayloStore {
   updateActivityDuration: (id: string, duration: number) => void
   updateActivityFacets: (id: string, facets: Record<string, number | boolean>, notes?: string) => void
   setReflection: (reflection: Partial<DailyEntry['reflection']>) => void
+  addTask: (text: string) => void
+  toggleTask: (id: string) => void
+  removeTask: (id: string) => void
+  setDiaryNote: (note: string) => void
   saveEntry: () => void
   resetEntry: () => void
   setModalOpen: (isOpen: boolean) => void
@@ -21,9 +25,12 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   currentEntry: {
     date: new Date(),
     activities: [],
+    tasks: [],
+    diaryNote: '',
     reflection: {
       highlights: '',
       mood: '😊',
+      dayRating: 3,
     },
   },
   selectedActivities: [],
@@ -104,6 +111,59 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     }))
   },
 
+  addTask: (text) => {
+    set((state) => {
+      const newTask: Task = {
+        id: Date.now().toString(),
+        text,
+        completed: false,
+        createdAt: new Date(),
+      }
+      const newTasks = [...(state.currentEntry.tasks || []), newTask]
+      return {
+        currentEntry: {
+          ...state.currentEntry,
+          tasks: newTasks,
+        },
+      }
+    })
+  },
+
+  toggleTask: (id) => {
+    set((state) => {
+      const newTasks = (state.currentEntry.tasks || []).map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+      return {
+        currentEntry: {
+          ...state.currentEntry,
+          tasks: newTasks,
+        },
+      }
+    })
+  },
+
+  removeTask: (id) => {
+    set((state) => {
+      const newTasks = (state.currentEntry.tasks || []).filter((task) => task.id !== id)
+      return {
+        currentEntry: {
+          ...state.currentEntry,
+          tasks: newTasks,
+        },
+      }
+    })
+  },
+
+  setDiaryNote: (note) => {
+    set((state) => ({
+      currentEntry: {
+        ...state.currentEntry,
+        diaryNote: note,
+      },
+    }))
+  },
+
   saveEntry: () => {
     const state = get()
     // Aquí guardaríamos en localStorage o API
@@ -127,9 +187,12 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       currentEntry: {
         date: new Date(),
         activities: [],
+        tasks: [],
+        diaryNote: '',
         reflection: {
           highlights: '',
           mood: '😊',
+          dayRating: 3,
         },
       },
       selectedActivities: [],

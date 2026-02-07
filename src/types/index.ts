@@ -19,14 +19,24 @@ export type ActivityIcon =
   | 'hobbies'
   | 'health'
 
+export interface Task {
+  id: string
+  text: string
+  completed: boolean
+  createdAt: Date
+}
+
 export interface DailyEntry {
   id: string
   date: Date
   activities: Activity[]
+  tasks: Task[]
+  diaryNote: string
   reflection: {
     highlights: string
     mood: string
     improvement?: string
+    dayRating?: number
   }
 }
 

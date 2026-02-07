@@ -7,9 +7,19 @@ import TimeSlider from '../components/sliders/TimeSlider'
 import ActivityModal from '../components/modals/ActivityModal'
 import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
+import ChecklistSection from '../components/ChecklistSection'
+import DiarySection from '../components/DiarySection'
 import { Sparkles, MessageCircle, Save, Cloud, CloudOff } from 'lucide-react'
 import { ActivityOption } from '../types'
 import { saveDailyEntry, getTodayEntry } from '../services/firebaseService'
+
+// Función para obtener el contexto temporal del día
+function getTimeContext(): 'morning' | 'afternoon' | 'evening' {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 19) return 'afternoon'
+  return 'evening'
+}
 
 export default function Home() {
   const { 
@@ -33,6 +43,7 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced')
+  const [timeContext] = useState<'morning' | 'afternoon' | 'evening'>(getTimeContext())
 
   // Cargar datos de Firebase al iniciar
   useEffect(() => {
@@ -200,6 +211,28 @@ export default function Home() {
   const canProceed = selectedActivities.length > 0
   const facets = selectedForEdit ? getShuffledFacets(selectedForEdit.id) : []
 
+  // Mensaje contextual del Hero según la hora
+  const getHeroMessage = () => {
+    if (timeContext === 'morning') {
+      return {
+        title: '🌅 ¡Buenos días!',
+        subtitle: 'Comienza tu día con intención',
+      }
+    } else if (timeContext === 'afternoon') {
+      return {
+        title: '☀️ ¿Cómo va tu día?',
+        subtitle: 'Registra lo que has vivido',
+      }
+    } else {
+      return {
+        title: '🌙 Reflexiona sobre tu día',
+        subtitle: 'Un momento para cerrar el día conscientemente',
+      }
+    }
+  }
+
+  const heroMessage = getHeroMessage()
+
   return (
     <div className="space-y-6 pb-8">
       {/* Hero Section */}
@@ -213,10 +246,10 @@ export default function Home() {
           animate={{ scale: [1, 1.02, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          ¿Cómo fue tu día?
+          {heroMessage.title}
         </motion.h2>
         <p className="text-gray-600 text-sm flex items-center justify-center gap-2">
-          Selecciona las actividades que realizaste hoy
+          {heroMessage.subtitle}
           {syncStatus === 'synced' && (
             <span className="text-green-600 flex items-center gap-1 text-xs">
               <Cloud size={14} /> Sincronizado
@@ -238,6 +271,12 @@ export default function Home() {
           )}
         </p>
       </motion.div>
+
+      {/* Checklist Section - Tareas del día */}
+      <ChecklistSection timeContext={timeContext} />
+
+      {/* Diary Section - Diario personal */}
+      <DiarySection timeContext={timeContext} />
 
       {/* Activity Grid */}
       <motion.div
