@@ -254,33 +254,48 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Actions - Sticky Footer */}
-          <div className="sticky bottom-0 bg-white pt-4 pb-2 -mx-6 px-6 border-t border-gray-200 mt-6">
-            <div className="flex gap-3">
+          {/* Actions - Fixed Footer */}
+          <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-white/95 pt-6 pb-4 px-6 border-t-2 border-gray-200 shadow-2xl z-10">
+            <div className="max-w-2xl mx-auto flex gap-3">
               {selectedActivities.some(a => a.icon === selectedForEdit?.id) && (
                 <motion.button
                   onClick={handleDeleteActivity}
-                  className="px-6 py-3 rounded-full font-semibold bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex items-center gap-2"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="px-6 py-4 rounded-full font-bold text-base bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex items-center gap-2 shadow-lg"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
                 >
-                  ❌ Eliminar
+                  🗑️ Eliminar
                 </motion.button>
               )}
               <motion.button
                 onClick={handleSaveActivity}
-                className="flex-1 py-4 rounded-full font-bold text-lg flex items-center justify-center gap-2 shadow-xl"
+                className="flex-1 py-5 rounded-full font-bold text-xl flex items-center justify-center gap-3 shadow-2xl border-2 border-white"
                 style={{
-                  background: `linear-gradient(135deg, ${selectedForEdit?.color}CC, ${selectedForEdit?.color})`,
-                  color: '#374151'
+                  background: `linear-gradient(135deg, ${selectedForEdit?.color}, ${selectedForEdit?.color}DD)`,
+                  color: '#1F2937'
                 }}
-                whileHover={{ scale: 1.03, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
               >
-                <Save size={24} strokeWidth={2.5} />
-                {selectedActivities.some(a => a.icon === selectedForEdit?.id) ? '💾 Actualizar' : '✨ Guardar'}
+                <Save size={28} strokeWidth={2.5} />
+                <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? '💾 Actualizar Actividad' : '✨ Guardar Actividad'}</span>
               </motion.button>
             </div>
+            
+            {/* Indicador visual de guardado */}
+            <motion.p 
+              className="text-center text-xs text-gray-500 mt-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              💡 Los datos se guardan automáticamente en tu navegador
+            </motion.p>
           </div>
         </div>
       </ActivityModal>
