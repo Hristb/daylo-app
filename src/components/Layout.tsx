@@ -8,7 +8,6 @@ import { getUserByEmail, createOrUpdateUser } from '../services/firebaseService'
 export default function Layout() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [userName, setUserName] = useState('')
-  const [userEmail, setUserEmail] = useState('')
   const [inputName, setInputName] = useState('')
   const [inputEmail, setInputEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -19,7 +18,6 @@ export default function Layout() {
     const storedEmail = localStorage.getItem('daylo-user-email')
     if (storedName && storedEmail) {
       setUserName(storedName)
-      setUserEmail(storedEmail)
     } else {
       setShowWelcome(true)
     }
@@ -50,7 +48,6 @@ export default function Layout() {
         localStorage.setItem('daylo-user-name', existingUser.name)
         localStorage.setItem('daylo-user-email', existingUser.email)
         setUserName(existingUser.name)
-        setUserEmail(existingUser.email)
         setShowWelcome(false)
         
         // Mostrar mensaje de bienvenida de regreso
@@ -64,7 +61,6 @@ export default function Layout() {
         localStorage.setItem('daylo-user-name', inputName.trim())
         localStorage.setItem('daylo-user-email', inputEmail.trim())
         setUserName(inputName.trim())
-        setUserEmail(inputEmail.trim())
         setShowWelcome(false)
       }
     } catch (error) {

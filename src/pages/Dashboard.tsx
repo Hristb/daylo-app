@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { DailyEntry } from '../types'
-import { Calendar, TrendingUp, Clock, Smile, Cloud } from 'lucide-react'
+import { Calendar, TrendingUp, Clock, Smile } from 'lucide-react'
 import { formatMinutes } from '../utils/constants'
 import { getAllUserEntries } from '../services/firebaseService'
 

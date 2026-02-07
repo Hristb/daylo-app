@@ -119,7 +119,7 @@ export default function Home() {
       
       const entryData = {
         id: Date.now().toString(),
-        date: new Date().toISOString(),
+        date: new Date(),
         activities: updatedActivities,
         reflection: {
           highlights: '',
