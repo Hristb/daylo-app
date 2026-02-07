@@ -39,8 +39,7 @@ export default function TimeSlider({
           <span className="text-sm font-semibold text-gray-700">{label}</span>
         </div>
         <motion.span
-          className="text-lg font-bold"
-          style={{ color }}
+          className="text-xl font-black text-gray-800"
           animate={isDragging ? { scale: [1, 1.2, 1] } : {}}
           transition={{ duration: 0.3 }}
         >
