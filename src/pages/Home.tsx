@@ -93,6 +93,27 @@ export default function Home() {
 
     const existing = selectedActivities.find(a => a.icon === selectedForEdit.id)
     
+    // VALIDACIÓN: Verificar que no se excedan las 24 horas del día
+    const MAX_MINUTES_PER_DAY = 1440 // 24 horas
+    let newTotalMinutes = totalMinutes
+    
+    if (existing) {
+      // Si se actualiza, restar el tiempo anterior y sumar el nuevo
+      newTotalMinutes = totalMinutes - existing.duration + tempDuration
+    } else {
+      // Si es nueva, sumar al total actual
+      newTotalMinutes = totalMinutes + tempDuration
+    }
+    
+    // Validar que no exceda 24 horas
+    if (newTotalMinutes > MAX_MINUTES_PER_DAY) {
+      const exceso = newTotalMinutes - MAX_MINUTES_PER_DAY
+      const excesoHoras = Math.floor(exceso / 60)
+      const excesoMinutos = exceso % 60
+      alert(`⚠️ Un día solo tiene 24 horas\n\nSi guardas esta actividad, tendrías ${Math.floor(newTotalMinutes / 60)}h ${newTotalMinutes % 60}m registradas.\n\nExceso: ${excesoHoras}h ${excesoMinutos}m\n\nPor favor, ajusta la duración de tus actividades.`)
+      return
+    }
+    
     if (existing) {
       // Actualizar existente
       updateActivityDuration(existing.id, tempDuration)
@@ -319,15 +340,53 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mt-6 pt-4 border-t border-gray-200"
+            className="mt-6 pt-4 border-t border-gray-200 space-y-3"
           >
             <div className="flex items-center justify-between text-sm">
               <span className="font-semibold text-gray-600">
                 {selectedActivities.length} {selectedActivities.length === 1 ? 'actividad' : 'actividades'}
               </span>
-              <span className="text-xl font-bold text-purple-600">
+              <span className={`text-xl font-bold ${
+                totalMinutes > 1440 ? 'text-red-600' : 
+                totalMinutes > 1200 ? 'text-orange-600' : 
+                'text-purple-600'
+              }`}>
                 {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
               </span>
+            </div>
+            
+            {/* Barra de progreso del día (24h) */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Tiempo del día</span>
+                <span>{Math.round((totalMinutes / 1440) * 100)}% de 24h</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((totalMinutes / 1440) * 100, 100)}%` }}
+                  className={`h-full rounded-full ${
+                    totalMinutes > 1440 ? 'bg-red-500' : 
+                    totalMinutes > 1200 ? 'bg-orange-400' : 
+                    totalMinutes > 960 ? 'bg-yellow-400' : 
+                    'bg-green-400'
+                  }`}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+              {totalMinutes > 1200 && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`text-xs ${
+                    totalMinutes > 1440 ? 'text-red-600 font-semibold' : 'text-orange-600'
+                  }`}
+                >
+                  {totalMinutes > 1440 
+                    ? '⚠️ Has excedido las 24 horas del día' 
+                    : '⚡ Te estás acercando al límite de 24h'}
+                </motion.p>
+              )}
             </div>
           </motion.div>
         )}
