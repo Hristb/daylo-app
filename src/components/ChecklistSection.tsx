@@ -24,7 +24,8 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
     if (newTaskText.trim() && !isTaskSaving) {
       setIsTaskSaving(true)
       try {
-        const isPriority = priorities.length < 3 && timeContext === 'morning'
+        // Siempre intentar agregar como prioridad si hay espacio
+        const isPriority = priorities.length < 3
         addTask(newTaskText.trim(), isPriority, false)
         setNewTaskText('')
         await new Promise(resolve => setTimeout(resolve, 100))
@@ -193,8 +194,7 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
       className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-6"
     >
       {/* 3 PRIORIDADES */}
-      {timeContext === 'morning' && (
-        <div className="space-y-3">
+      <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -257,11 +257,9 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
             </motion.div>
           )}
         </div>
-      )}
 
       {/* 1 ACCIÓN PARA TI */}
-      {timeContext === 'morning' && (
-        <div className="space-y-3 border-t-2 border-gray-100 pt-6">
+      <div className="space-y-3 border-t-2 border-gray-100 pt-6">
           <div>
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               💚 1 Acción para ti
@@ -308,7 +306,6 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
             </form>
           )}
         </div>
-      )}
 
       {/* OTRAS TAREAS O RESUMEN */}
       {(timeContext !== 'morning' || otherTasks.length > 0) && (

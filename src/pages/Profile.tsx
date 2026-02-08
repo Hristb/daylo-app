@@ -334,7 +334,9 @@ export default function Profile() {
         )}
 
         {/* Historial de Actividades */}
-        <HistoryLog />
+        <div className="mb-6">
+          <HistoryLog />
+        </div>
 
         {/* Botón de cerrar sesión */}
         <motion.button
