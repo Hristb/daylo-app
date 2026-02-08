@@ -7,31 +7,31 @@ interface EmotionalCheckInProps {
   onComplete: () => void
 }
 
-const FEELINGS = [
-  { emoji: '😊', label: 'Bien', color: '#D4FFE5' },
-  { emoji: '😰', label: 'Ansioso/a', color: '#FFE5D4' },
-  { emoji: '😴', label: 'Cansado/a', color: '#E8D4FF' },
-  { emoji: '😤', label: 'Abrumado/a', color: '#FFD4E5' },
-  { emoji: '🤗', label: 'Motivado/a', color: '#FFF4D4' },
-  { emoji: '😐', label: 'Neutral', color: '#E8E8E8' },
+const LIFE_AREAS = [
+  { emoji: '💼', label: 'Trabajo/Carrera', color: '#C4E5FF' },
+  { emoji: '🏋️', label: 'Salud/Bienestar', color: '#D4FFE5' },
+  { emoji: '❤️', label: 'Relaciones', color: '#FFD4E5' },
+  { emoji: '📚', label: 'Aprendizaje', color: '#E8D4FF' },
+  { emoji: '🎨', label: 'Creatividad', color: '#FFF4D4' },
+  { emoji: '💰', label: 'Finanzas', color: '#FFE5D4' },
 ]
 
 export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) {
   const { setEmotionalCheckIn, setDayIntention, autoSave } = useDayloStore()
   const [step, setStep] = useState(1)
-  const [selectedFeeling, setSelectedFeeling] = useState('')
-  const [mentalNoise, setMentalNoise] = useState('')
-  const [needsToday, setNeedsToday] = useState('')
+  const [selectedArea, setSelectedArea] = useState('')
+  const [mainGoal, setMainGoal] = useState('')
+  const [idealDay, setIdealDay] = useState('')
   const [intention, setIntention] = useState('')
 
   const handleNext = async () => {
-    if (step === 1 && selectedFeeling) {
+    if (step === 1 && selectedArea) {
       setEmotionalCheckIn({
-        feeling: selectedFeeling,
-        mentalNoise: mentalNoise || undefined,
-        needsToday: needsToday || undefined,
+        feeling: selectedArea,
+        mentalNoise: mainGoal || undefined,
+        needsToday: idealDay || undefined,
       })
-      // Guardar inmediatamente el check-in emocional
+      // Guardar inmediatamente el check-in inicial
       await autoSave()
       setStep(2)
     } else if (step === 2 && intention) {
@@ -44,7 +44,7 @@ export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) 
     }
   }
 
-  const canProceedStep1 = selectedFeeling !== ''
+  const canProceedStep1 = selectedArea !== ''
   const canProceedStep2 = intention.trim() !== ''
 
   return (
@@ -97,61 +97,61 @@ export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) 
                   <div className="flex items-start gap-2">
                     <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-purple-700">
-                      Tomarte un momento para reconocer cómo te sientes te ayuda a regular tus emociones antes de actuar
+                      Conocer tus objetivos nos ayuda a personalizar tu experiencia y sugerirte lo más relevante para ti
                     </p>
                   </div>
                 </motion.div>
 
-                {/* Question 1: How do you feel? */}
+                {/* Question 1: ¿En qué área quieres enfocarte? */}
                 <div className="space-y-3">
                   <label className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    💭 ¿Cómo te sientes ahora mismo?
+                    🎯 ¿En qué área de tu vida quieres enfocarte más?
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    {FEELINGS.map((feeling) => (
+                    {LIFE_AREAS.map((area) => (
                       <motion.button
-                        key={feeling.label}
-                        onClick={() => setSelectedFeeling(feeling.label)}
+                        key={area.label}
+                        onClick={() => setSelectedArea(area.label)}
                         className={`p-3 rounded-xl border-2 transition-all ${
-                          selectedFeeling === feeling.label
+                          selectedArea === area.label
                             ? 'border-purple-400 shadow-md scale-105'
                             : 'border-gray-200 hover:border-purple-300'
                         }`}
                         style={{
-                          backgroundColor: selectedFeeling === feeling.label ? feeling.color : 'white'
+                          backgroundColor: selectedArea === area.label ? area.color : 'white'
                         }}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <div className="text-2xl mb-1">{feeling.emoji}</div>
-                        <div className="text-xs font-medium text-gray-700">{feeling.label}</div>
+                        <div className="text-2xl mb-1">{area.emoji}</div>
+                        <div className="text-xs font-medium text-gray-700">{area.label}</div>
                       </motion.button>
                     ))}
                   </div>
                 </div>
 
-                {/* Question 2: Mental noise (optional) */}
-                {selectedFeeling && (
+                {/* Question 2: ¿Cuál es tu objetivo principal? */}
+                {selectedArea && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     className="space-y-3"
                   >
                     <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      💭 ¿Hay algo que te preocupa? <span className="text-xs text-gray-400">(opcional)</span>
+                      🎯 ¿Cuál es tu objetivo principal en esta área? <span className="text-xs text-gray-400">(opcional)</span>
                     </label>
                     <textarea
-                      value={mentalNoise}
-                      onChange={(e) => setMentalNoise(e.target.value)}
-                      placeholder="Ej: El proyecto, una decisión pendiente, algo que no puedo dejar de pensar..."
+                      value={mainGoal}
+                      onChange={(e) => setMainGoal(e.target.value)}
+                      placeholder="Ej: Mejorar mi condición física, aprender React, ahorrar para un viaje..."
                       className="w-full p-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent resize-none text-sm"
                       rows={2}
                     />
                   </motion.div>
                 )}
 
-                {/* Question 3: What do you need? */}
-                {selectedFeeling && (
+                {/* Question 3: ¿Cómo sería tu día ideal? */}
+                {selectedArea && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -159,13 +159,13 @@ export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) 
                     className="space-y-3"
                   >
                     <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      💚 ¿Qué necesitas hoy para estar bien?
+                      ✨ ¿Cómo sería tu día ideal?
                     </label>
                     <input
                       type="text"
-                      value={needsToday}
-                      onChange={(e) => setNeedsToday(e.target.value)}
-                      placeholder="Ej: Calma, tiempo para mí, desconectar, energía..."
+                      value={idealDay}
+                      onChange={(e) => setIdealDay(e.target.value)}
+                      placeholder="Ej: Productivo y balanceado, tranquilo sin presión, lleno de energía..."
                       className="w-full p-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-sm"
                     />
                   </motion.div>
@@ -183,13 +183,13 @@ export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) 
               >
                 {/* Summary of Step 1 */}
                 <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                  <p className="text-sm text-gray-600 mb-2">Te sientes:</p>
+                  <p className="text-sm text-gray-600 mb-2">Área de enfoque:</p>
                   <p className="text-lg font-semibold text-gray-800">
-                    {FEELINGS.find(f => f.label === selectedFeeling)?.emoji} {selectedFeeling}
+                    {LIFE_AREAS.find(a => a.label === selectedArea)?.emoji} {selectedArea}
                   </p>
-                  {needsToday && (
+                  {idealDay && (
                     <p className="text-sm text-purple-700 mt-2">
-                      💚 Necesitas: {needsToday}
+                      ✨ Tu día ideal: {idealDay}
                     </p>
                   )}
                 </div>

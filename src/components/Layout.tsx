@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { User, Mail, LogOut } from 'lucide-react'
 import { getUserByEmail, createOrUpdateUser } from '../services/firebaseService'
+import Avatar from './Avatar'
 
 export default function Layout() {
   const [showWelcome, setShowWelcome] = useState(false)
@@ -100,13 +101,28 @@ export default function Layout() {
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <motion.div
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-pink to-pastel-purple flex items-center justify-center shadow-lg"
-                whileHover={{ scale: 1.1, rotate: 360 }}
-                transition={{ duration: 0.5 }}
-              >
-                <span className="text-2xl">✨</span>
-              </motion.div>
+              {userName ? (
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Avatar 
+                    name={userName} 
+                    email={localStorage.getItem('daylo-user-email') || ''} 
+                    size={44}
+                    className="shadow-lg cursor-pointer"
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-pink to-pastel-purple flex items-center justify-center shadow-lg"
+                  whileHover={{ scale: 1.1, rotate: 360 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <span className="text-2xl">✨</span>
+                </motion.div>
+              )}
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
                   Daylo

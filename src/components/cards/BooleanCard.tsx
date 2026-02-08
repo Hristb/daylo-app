@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Check, X as XIcon } from 'lucide-react'
 
 interface BooleanCardProps {
-  emoji: string
+  emoji?: string
   label: string
   value: boolean | null
   onChange: (value: boolean) => void
@@ -17,7 +17,7 @@ export default function BooleanCard({ emoji, label, value, onChange, color }: Bo
       className="bg-white rounded-2xl p-5 shadow-md border border-gray-100"
     >
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-3xl">{emoji}</span>
+        {emoji && <span className="text-3xl">{emoji}</span>}
         <h3 className="text-base font-semibold text-gray-700 flex-1">{label}</h3>
       </div>
 

@@ -65,7 +65,7 @@ export interface ActivityFacet {
   id: string
   label: string
   type: 'rating' | 'boolean'
-  emoji: string
+  emoji?: string
 }
 
 export interface ActivityLog {

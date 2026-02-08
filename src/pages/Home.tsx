@@ -8,7 +8,6 @@ import ActivityModal from '../components/modals/ActivityModal'
 import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
 import ChecklistSection from '../components/ChecklistSection'
-import DiarySection from '../components/DiarySection'
 import EmotionalCheckIn from '../components/EmotionalCheckIn'
 import DayClosing from '../components/DayClosing'
 import { Sparkles, Cloud, CloudOff, AlertCircle, Target, Clock } from 'lucide-react'
@@ -264,7 +263,7 @@ export default function Home() {
       }
     } else if (timeContext === 'afternoon') {
       return {
-        title: '☀️ ¿Cómo va tu día?',
+        title: '¿Cómo va tu día?',
         subtitle: 'Registra lo que has vivido',
       }
     } else {
@@ -902,9 +901,6 @@ export default function Home() {
       </ActivityModal>
 
       {/* Time Sliders - REMOVED (now inside modal) */}
-
-      {/* Diary Section - Diario personal (al final) */}
-      <DiarySection timeContext={timeContext} />
     </div>
   )
 }

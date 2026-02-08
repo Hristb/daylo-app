@@ -57,52 +57,52 @@ export const ACTIVITY_OPTIONS: ActivityOption[] = [
   },
 ]
 
-// Preguntas optimizadas por actividad - Análisis basado en usuarios diarios
+// Preguntas optimizadas por actividad - Diseño limpio sin emojis en preguntas
 export const ACTIVITY_FACETS: Record<string, ActivityFacet[]> = {
   work: [
-    { id: 'progress', label: '¿Avanzaste en algo importante?', type: 'boolean', emoji: '⭐' },
-    { id: 'control', label: '¿Te sentiste en control?', type: 'boolean', emoji: '🎮' },
-    { id: 'work_value', label: '¿Valor de lo realizado?', type: 'rating', emoji: '💎' },
+    { id: 'progress', label: '¿Avanzaste en algo importante?', type: 'boolean' },
+    { id: 'control', label: '¿Te sentiste en control?', type: 'boolean' },
+    { id: 'work_value', label: '¿Valor de lo realizado?', type: 'rating' },
   ],
   study: [
-    { id: 'learned_new', label: '¿Aprendiste algo nuevo?', type: 'boolean', emoji: '💡' },
-    { id: 'can_explain', label: '¿Podrías explicarlo?', type: 'boolean', emoji: '🗣️' },
-    { id: 'usefulness', label: '¿Qué tan útil fue?', type: 'rating', emoji: '🎯' },
+    { id: 'learned_new', label: '¿Aprendiste algo nuevo?', type: 'boolean' },
+    { id: 'can_explain', label: '¿Podrías explicarlo?', type: 'boolean' },
+    { id: 'usefulness', label: '¿Qué tan útil fue?', type: 'rating' },
   ],
   home: [
-    { id: 'space_better', label: '¿Tu espacio está mejor?', type: 'boolean', emoji: '🏡' },
-    { id: 'did_necessary', label: '¿Hiciste lo necesario?', type: 'boolean', emoji: '✔️' },
-    { id: 'how_feel', label: '¿Cómo te sientes ahora?', type: 'rating', emoji: '💭' },
+    { id: 'space_better', label: '¿Tu espacio está mejor?', type: 'boolean' },
+    { id: 'did_necessary', label: '¿Hiciste lo necesario?', type: 'boolean' },
+    { id: 'how_feel', label: '¿Cómo te sientes ahora?', type: 'rating' },
   ],
   exercise: [
-    { id: 'healthy_challenge', label: '¿Te desafiaste sanamente?', type: 'boolean', emoji: '🎯' },
-    { id: 'pain_discomfort', label: '¿Dolor o molestia?', type: 'boolean', emoji: '🩹' },
-    { id: 'enjoyed', label: '¿Disfrutaste la actividad?', type: 'boolean', emoji: '🎉' },
+    { id: 'healthy_challenge', label: '¿Te desafiaste sanamente?', type: 'boolean' },
+    { id: 'pain_discomfort', label: '¿Dolor o molestia?', type: 'boolean' },
+    { id: 'enjoyed', label: '¿Disfrutaste la actividad?', type: 'boolean' },
   ],
   social: [
-    { id: 'authentic', label: '¿Conversación auténtica?', type: 'boolean', emoji: '💬' },
-    { id: 'emotional_impact', label: '¿Impacto emocional?', type: 'rating', emoji: '❤️' },
-    { id: 'added_value', label: '¿Agregó valor a tu día?', type: 'boolean', emoji: '✨' },
+    { id: 'authentic', label: '¿Conversación auténtica?', type: 'boolean' },
+    { id: 'emotional_impact', label: '¿Impacto emocional?', type: 'rating' },
+    { id: 'added_value', label: '¿Agregó valor a tu día?', type: 'boolean' },
   ],
   hobbies: [
-    { id: 'lost_track_time', label: '¿Perdiste noción del tiempo?', type: 'boolean', emoji: '⏰' },
-    { id: 'enjoyed_process', label: '¿Disfrutaste el proceso?', type: 'boolean', emoji: '😊' },
-    { id: 'recharged', label: '¿Te recargó energía?', type: 'boolean', emoji: '⚡' },
+    { id: 'lost_track_time', label: '¿Perdiste noción del tiempo?', type: 'boolean' },
+    { id: 'enjoyed_process', label: '¿Disfrutaste el proceso?', type: 'boolean' },
+    { id: 'recharged', label: '¿Te recargó energía?', type: 'boolean' },
   ],
   food: [
-    { id: 'nourished_well', label: '¿Te nutriste bien?', type: 'boolean', emoji: '🥗' },
-    { id: 'taste_quality', label: '¿Sabor y presentación?', type: 'rating', emoji: '😋' },
-    { id: 'listened_body', label: '¿Escuchaste tu cuerpo?', type: 'boolean', emoji: '💚' },
+    { id: 'nourished_well', label: '¿Te nutriste bien?', type: 'boolean' },
+    { id: 'taste_quality', label: '¿Sabor y presentación?', type: 'rating' },
+    { id: 'listened_body', label: '¿Escuchaste tu cuerpo?', type: 'boolean' },
   ],
   sleep: [
-    { id: 'hours_amount', label: '¿Cantidad de horas?', type: 'rating', emoji: '⏱️' },
-    { id: 'slept_deeply', label: '¿Dormiste profundamente?', type: 'boolean', emoji: '💤' },
-    { id: 'ready_for_day', label: '¿Listo para el día?', type: 'boolean', emoji: '☀️' },
+    { id: 'hours_amount', label: '¿Cantidad de horas?', type: 'rating' },
+    { id: 'slept_deeply', label: '¿Dormiste profundamente?', type: 'boolean' },
+    { id: 'ready_for_day', label: '¿Listo para el día?', type: 'boolean' },
   ],
   health: [
-    { id: 'physical_feeling', label: '¿Cómo te sientes físicamente?', type: 'rating', emoji: '💪' },
-    { id: 'health_stable', label: '¿Tu salud está estable?', type: 'boolean', emoji: '📊' },
-    { id: 'did_something', label: '¿Hiciste algo por tu salud?', type: 'boolean', emoji: '🌱' },
+    { id: 'physical_feeling', label: '¿Cómo te sientes físicamente?', type: 'rating' },
+    { id: 'health_stable', label: '¿Tu salud está estable?', type: 'boolean' },
+    { id: 'did_something', label: '¿Hiciste algo por tu salud?', type: 'boolean' },
   ],
 }
 
