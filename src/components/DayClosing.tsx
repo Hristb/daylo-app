@@ -29,15 +29,15 @@ export default function DayClosing({ onComplete }: DayClosingProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-gradient-to-br from-indigo-100/90 to-purple-100/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-gradient-to-br from-indigo-100/90 to-purple-100/90 backdrop-blur-md z-50 flex items-center justify-center p-4 pb-24"
     >
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
-        className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-purple-100 px-6 py-4 rounded-t-3xl">
+        <div className="flex-shrink-0 bg-white border-b border-purple-100 px-6 py-4 rounded-t-3xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-white" />
@@ -51,8 +51,9 @@ export default function DayClosing({ onComplete }: DayClosingProps) {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="p-6 space-y-6">
           {/* Inspirational Message */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -137,10 +138,11 @@ export default function DayClosing({ onComplete }: DayClosingProps) {
               </div>
             </div>
           </motion.div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 rounded-b-3xl">
+        {/* Footer - Always visible */}
+        <div className="flex-shrink-0 bg-white border-t border-gray-100 px-6 py-4 rounded-b-3xl shadow-lg">
           <div className="flex gap-3">
             <motion.button
               onClick={() => onComplete()}
