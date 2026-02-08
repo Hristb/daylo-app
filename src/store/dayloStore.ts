@@ -6,16 +6,22 @@ interface DayloStore {
   selectedActivities: Activity[]
   totalMinutes: number
   isModalOpen: boolean
+  hasCompletedCheckIn: boolean
   
   addActivity: (activity: Activity) => void
   removeActivity: (id: string) => void
   updateActivityDuration: (id: string, duration: number) => void
   updateActivityFacets: (id: string, facets: Record<string, number | boolean>, notes?: string) => void
+  updateActivityEnergy: (id: string, energyImpact: 'drain' | 'neutral' | 'boost') => void
   setReflection: (reflection: Partial<DailyEntry['reflection']>) => void
-  addTask: (text: string) => void
+  addTask: (text: string, isPriority?: boolean, isPersonal?: boolean) => void
   toggleTask: (id: string) => void
   removeTask: (id: string) => void
   setDiaryNote: (note: string) => void
+  setEmotionalCheckIn: (checkIn: DailyEntry['emotionalCheckIn']) => void
+  setDayIntention: (intention: string) => void
+  setDayStory: (story: DailyEntry['dayStory']) => void
+  completeCheckIn: () => void
   saveEntry: () => void
   resetEntry: () => void
   setModalOpen: (isOpen: boolean) => void
@@ -27,6 +33,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     activities: [],
     tasks: [],
     diaryNote: '',
+    emotionalCheckIn: undefined,
+    dayIntention: undefined,
+    dayStory: undefined,
     reflection: {
       highlights: '',
       mood: '😊',
@@ -36,6 +45,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   selectedActivities: [],
   totalMinutes: 0,
   isModalOpen: false,
+  hasCompletedCheckIn: false,
 
   addActivity: (activity) => {
     set((state) => {
@@ -99,6 +109,21 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     })
   },
 
+  updateActivityEnergy: (id, energyImpact) => {
+    set((state) => {
+      const newActivities = state.selectedActivities.map((a) =>
+        a.id === id ? { ...a, energyImpact } : a
+      )
+      return {
+        selectedActivities: newActivities,
+        currentEntry: {
+          ...state.currentEntry,
+          activities: newActivities,
+        },
+      }
+    })
+  },
+
   setReflection: (reflection) => {
     set((state) => ({
       currentEntry: {
@@ -111,13 +136,15 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     }))
   },
 
-  addTask: (text) => {
+  addTask: (text, isPriority = false, isPersonal = false) => {
     set((state) => {
       const newTask: Task = {
         id: Date.now().toString(),
         text,
         completed: false,
         createdAt: new Date(),
+        isPriority,
+        isPersonal,
       }
       const newTasks = [...(state.currentEntry.tasks || []), newTask]
       return {
@@ -155,6 +182,40 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     })
   },
 
+  setEmotionalCheckIn: (checkIn) => {
+    set((state) => ({
+      currentEntry: {
+        ...state.currentEntry,
+        emotionalCheckIn: checkIn,
+      },
+    }))
+  },
+
+  setDayIntention: (intention) => {
+    set((state) => ({
+      currentEntry: {
+        ...state.currentEntry,
+        dayIntention: intention,
+      },
+    }))
+  },
+
+  setDayStory: (story) => {
+    set((state) => ({
+      currentEntry: {
+        ...state.currentEntry,
+        dayStory: story,
+      },
+    }))
+  },
+
+  completeCheckIn: () => {
+    set({ hasCompletedCheckIn: true })
+    // Guardar en localStorage para no volver a mostrar hoy
+    const today = new Date().toISOString().split('T')[0]
+    localStorage.setItem('daylo-last-checkin', today)
+  },
+
   setDiaryNote: (note) => {
     set((state) => ({
       currentEntry: {
@@ -189,6 +250,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         activities: [],
         tasks: [],
         diaryNote: '',
+        emotionalCheckIn: undefined,
+        dayIntention: undefined,
+        dayStory: undefined,
         reflection: {
           highlights: '',
           mood: '😊',
@@ -197,6 +261,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       },
       selectedActivities: [],
       totalMinutes: 0,
+      hasCompletedCheckIn: false,
     })
   },
 

@@ -9,7 +9,9 @@ import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
 import ChecklistSection from '../components/ChecklistSection'
 import DiarySection from '../components/DiarySection'
-import { Sparkles, MessageCircle, Cloud, CloudOff } from 'lucide-react'
+import EmotionalCheckIn from '../components/EmotionalCheckIn'
+import DayClosing from '../components/DayClosing'
+import { Sparkles, MessageCircle, Cloud, CloudOff, AlertCircle } from 'lucide-react'
 import { ActivityOption, ActivityFacet } from '../types'
 import { saveDailyEntry, getTodayEntry } from '../services/firebaseService'
 
@@ -26,6 +28,7 @@ export default function Home() {
     selectedActivities, 
     totalMinutes, 
     currentEntry,
+    hasCompletedCheckIn,
     addActivity, 
     removeActivity,
     updateActivityDuration,
@@ -33,6 +36,7 @@ export default function Home() {
     setReflection,
     saveEntry,
     setModalOpen,
+    completeCheckIn,
   } = useDayloStore()
 
   const [selectedForEdit, setSelectedForEdit] = useState<ActivityOption | null>(null)
@@ -44,8 +48,10 @@ export default function Home() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced')
   const [timeContext] = useState<'morning' | 'afternoon' | 'evening'>(getTimeContext())
-  // FIXED: Fijar orden de preguntas cuando se abre el modal (no cambiar en cada render)
   const [shuffledFacets, setShuffledFacets] = useState<ActivityFacet[]>([])
+  const [showEmotionalCheckIn, setShowEmotionalCheckIn] = useState(false)
+  const [showDayClosing, setShowDayClosing] = useState(false)
+  const [exceedsTimeWarning, setExceedsTimeWarning] = useState(false)
 
   // Cargar datos de Firebase al iniciar
   useEffect(() => {
@@ -63,6 +69,14 @@ export default function Home() {
       }
     }
     loadTodayData()
+
+    // Mostrar EmotionalCheckIn automáticamente en la mañana
+    const today = new Date().toISOString().split('T')[0]
+    const lastCheckIn = localStorage.getItem('daylo-last-checkin')
+    
+    if (timeContext === 'morning' && !hasCompletedCheckIn && lastCheckIn !== today) {
+      setTimeout(() => setShowEmotionalCheckIn(true), 1000)
+    }
   }, [])
 
   const handleActivityClick = (activityOption: ActivityOption) => {
@@ -93,26 +107,18 @@ export default function Home() {
 
     const existing = selectedActivities.find(a => a.icon === selectedForEdit.id)
     
-    // VALIDACIÓN: Verificar que no se excedan las 24 horas del día
+    // VALIDACIÓN SUAVE: Advertir si excede 24 horas
     const MAX_MINUTES_PER_DAY = 1440 // 24 horas
     let newTotalMinutes = totalMinutes
     
     if (existing) {
-      // Si se actualiza, restar el tiempo anterior y sumar el nuevo
       newTotalMinutes = totalMinutes - existing.duration + tempDuration
     } else {
-      // Si es nueva, sumar al total actual
       newTotalMinutes = totalMinutes + tempDuration
     }
     
-    // Validar que no exceda 24 horas
-    if (newTotalMinutes > MAX_MINUTES_PER_DAY) {
-      const exceso = newTotalMinutes - MAX_MINUTES_PER_DAY
-      const excesoHoras = Math.floor(exceso / 60)
-      const excesoMinutos = exceso % 60
-      alert(`⚠️ Un día solo tiene 24 horas\n\nSi guardas esta actividad, tendrías ${Math.floor(newTotalMinutes / 60)}h ${newTotalMinutes % 60}m registradas.\n\nExceso: ${excesoHoras}h ${excesoMinutos}m\n\nPor favor, ajusta la duración de tus actividades.`)
-      return
-    }
+    // Mostrar advertencia suave en lugar de bloquear
+    const exceedsLimit = newTotalMinutes > MAX_MINUTES_PER_DAY
     
     if (existing) {
       // Actualizar existente
@@ -129,6 +135,12 @@ export default function Home() {
         facets: tempFacets,
         notes: tempNotes,
       })
+    }
+
+    // Mostrar advertencia si excede tiempo
+    if (exceedsLimit) {
+      setExceedsTimeWarning(true)
+      setTimeout(() => setExceedsTimeWarning(false), 4000)
     }
 
     // Guardar en Firebase y localStorage
@@ -299,6 +311,109 @@ export default function Home() {
           )}
         </p>
       </motion.div>
+
+      {/* Emotional Check-In Modal */}
+      <AnimatePresence>
+        {showEmotionalCheckIn && (
+          <EmotionalCheckIn
+            onComplete={() => {
+              setShowEmotionalCheckIn(false)
+              completeCheckIn()
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Day Closing Modal */}
+      <AnimatePresence>
+        {showDayClosing && (
+          <DayClosing
+            onComplete={() => {
+              setShowDayClosing(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Time Exceeds Warning */}
+      <AnimatePresence>
+        {exceedsTimeWarning && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 max-w-md w-full mx-4"
+          >
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 shadow-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-orange-800">
+                    Registraste más de 24 horas
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    No pasa nada, a veces es difícil calcular. Puedes ajustarlo después.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Intention Display (si ya completó check-in) */}
+      {currentEntry.dayIntention && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-200"
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">✨</span>
+            <div>
+              <p className="text-xs text-purple-600 font-semibold mb-1">
+                Tu intención de hoy
+              </p>
+              <p className="text-sm text-gray-800">
+                {currentEntry.dayIntention}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Compassion Message (cuando no hay actividades en la noche) */}
+      {timeContext === 'evening' && selectedActivities.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-green-50 to-teal-50 rounded-2xl p-5 border border-green-200"
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💚</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-800 mb-2">
+                No pasa nada si hoy no registraste actividades
+              </p>
+              <p className="text-xs text-gray-600">
+                Los días de descanso también cuentan. ¿Qué SÍ hiciste hoy, aunque parezca pequeño?
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Button to open Day Closing */}
+      {timeContext === 'evening' && selectedActivities.length > 0 && !currentEntry.dayStory?.mostSignificant && (
+        <motion.button
+          onClick={() => setShowDayClosing(true)}
+          className="w-full py-4 bg-gradient-to-r from-indigo-400 to-purple-400 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          🌙 Cerrar mi día con reflexión
+        </motion.button>
+      )}
 
       {/* Checklist Section - Tareas del día */}
       <ChecklistSection timeContext={timeContext} />

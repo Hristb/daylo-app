@@ -6,6 +6,7 @@ export interface Activity {
   color: string
   facets?: Record<string, number | boolean>
   notes?: string
+  energyImpact?: 'drain' | 'neutral' | 'boost'
 }
 
 export type ActivityIcon = 
@@ -24,6 +25,8 @@ export interface Task {
   text: string
   completed: boolean
   createdAt: Date
+  isPriority?: boolean
+  isPersonal?: boolean
 }
 
 export interface DailyEntry {
@@ -32,6 +35,17 @@ export interface DailyEntry {
   activities: Activity[]
   tasks: Task[]
   diaryNote: string
+  emotionalCheckIn?: {
+    feeling: string
+    needsToday?: string
+    mentalNoise?: string
+  }
+  dayIntention?: string
+  dayStory?: {
+    howStarted?: string
+    mostSignificant?: string
+    howClosing?: string
+  }
   reflection: {
     highlights: string
     mood: string
