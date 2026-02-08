@@ -303,9 +303,6 @@ export default function Home() {
       {/* Checklist Section - Tareas del día */}
       <ChecklistSection timeContext={timeContext} />
 
-      {/* Diary Section - Diario personal */}
-      <DiarySection timeContext={timeContext} />
-
       {/* Activity Grid */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -602,6 +599,9 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Diary Section - Diario personal (al final) */}
+      <DiarySection timeContext={timeContext} />
 
       {/* Success Animation */}
       <AnimatePresence>
