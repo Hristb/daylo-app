@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom'
 import Navigation from './Navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
-import { User, Mail } from 'lucide-react'
+import { User, Mail, LogOut } from 'lucide-react'
 import { getUserByEmail, createOrUpdateUser } from '../services/firebaseService'
 
 export default function Layout() {
@@ -12,6 +12,24 @@ export default function Layout() {
   const [inputEmail, setInputEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const handleQuickLogout = () => {
+    if (window.confirm('¿Cerrar sesión?')) {
+      // Limpiar TODAS las claves (incluyendo legacy)
+      localStorage.removeItem('daylo-user-name')
+      localStorage.removeItem('daylo-user-email')
+      localStorage.removeItem('daylo-entries')
+      localStorage.removeItem('daylo-last-checkin')
+      localStorage.removeItem('userName')  // Legacy
+      localStorage.removeItem('userEmail') // Legacy
+      
+      // Limpiar también el store de Zustand si existe
+      localStorage.removeItem('daylo-store')
+      
+      // Redirigir a /hoy - el Layout detectará que no hay usuario y mostrará el modal de bienvenida
+      window.location.href = '/hoy'
+    }
+  }
 
   useEffect(() => {
     const storedName = localStorage.getItem('daylo-user-name')
@@ -99,18 +117,34 @@ export default function Layout() {
               </div>
             </div>
             
-            <motion.div
-              className="text-sm text-gray-600"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              {new Date().toLocaleDateString('es-ES', { 
-                weekday: 'short', 
-                day: 'numeric', 
-                month: 'short' 
-              })}
-            </motion.div>
+            <div className="flex items-center gap-3">
+              {/* Fecha */}
+              <motion.div
+                className="text-sm text-gray-600 hidden sm:block"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {new Date().toLocaleDateString('es-ES', { 
+                  weekday: 'short', 
+                  day: 'numeric', 
+                  month: 'short' 
+                })}
+              </motion.div>
+              
+              {/* Botón de logout rápido */}
+              {userName && !showWelcome && (
+                <motion.button
+                  onClick={handleQuickLogout}
+                  className="p-2 rounded-full hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors group"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-5 h-5" />
+                </motion.button>
+              )}
+            </div>
           </div>
         </div>
       </motion.header>

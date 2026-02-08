@@ -1,34 +1,60 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Sparkles, ChevronDown } from 'lucide-react'
+import { BookOpen, Sparkles, ChevronDown, Save, Check } from 'lucide-react'
 import { useDayloStore } from '../store/dayloStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface DiarySectionProps {
   timeContext: 'morning' | 'afternoon' | 'evening'
 }
 
 export default function DiarySection({ timeContext }: DiarySectionProps) {
-  const { currentEntry, setDiaryNote } = useDayloStore()
+  const { currentEntry, setDiaryNote, autoSave } = useDayloStore()
   const note = currentEntry.diaryNote || ''
   const [isOpen, setIsOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
+
+  // Auto-save con debounce cuando el diario cambia
+  useEffect(() => {
+    if (note) {
+      const timer = setTimeout(() => {
+        autoSave()
+      }, 1000) // Guardar 1 segundo después de que el usuario deje de escribir
+
+      return () => clearTimeout(timer)
+    }
+  }, [note, autoSave])
+
+  const handleManualSave = async () => {
+    setIsSaving(true)
+    try {
+      await autoSave()
+      setJustSaved(true)
+      setTimeout(() => setJustSaved(false), 2000) // Mostrar "Guardado" por 2 segundos
+    } catch (error) {
+      console.error('Error guardando nota:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const getContextPrompt = () => {
     if (timeContext === 'morning') {
       return {
-        title: '🌅 ¿Cómo te sientes hoy?',
-        placeholder: 'Hoy me siento... Espero que sea un día en el que...\n\nÚsalo como tu espacio personal para expresarte libremente.',
+        title: '📝 Notas para hoy',
+        placeholder: 'Anota lo que quieras: ideas, intenciones, cómo te sientes, recordatorios...\n\nEste es tu espacio libre para escribir lo que necesites.',
         emoji: '✨',
       }
     } else if (timeContext === 'afternoon') {
       return {
-        title: '🌤️ ¿Cómo va tu día?',
-        placeholder: 'Hasta ahora mi día ha sido... Me siento...\n\nComparte lo que llevas vivido hoy.',
+        title: '📝 Notas del día',
+        placeholder: 'Escribe lo que quieras: pensamientos, ideas, algo que pasó, cómo te sientes...\n\nSin límites, sin filtros. Tu espacio personal.',
         emoji: '💭',
       }
     } else {
       return {
-        title: '🌙 Reflexión del día',
-        placeholder: 'Hoy fue un día... Lo mejor fue... También sentí...\n\nEste es tu espacio seguro para reflexionar.',
+        title: '📝 Notas del día',
+        placeholder: 'Aquí puedes escribir lo que quieras: reflexiones, versos, ideas sueltas, lo que viviste...\n\nTu espacio seguro para expresarte.',
         emoji: '📖',
       }
     }
@@ -125,6 +151,40 @@ export default function DiarySection({ timeContext }: DiarySectionProps) {
                   <span>{note.split('\n').length} líneas</span>
                 </motion.div>
               )}
+
+              {/* Botón Guardar */}
+              <motion.button
+                onClick={handleManualSave}
+                disabled={isSaving || !note}
+                className={`mt-4 w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                  justSaved
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+                whileHover={!isSaving && note ? { scale: 1.02 } : {}}
+                whileTap={!isSaving && note ? { scale: 0.98 } : {}}
+              >
+                {justSaved ? (
+                  <>
+                    <Check size={18} />
+                    <span>¡Guardado!</span>
+                  </>
+                ) : isSaving ? (
+                  <>
+                    <motion.div
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    <span>Guardar Notas</span>
+                  </>
+                )}
+              </motion.button>
             </div>
           </motion.div>
         )}

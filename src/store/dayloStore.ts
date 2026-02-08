@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Activity, DailyEntry, Task } from '../types'
+import { Activity, DailyEntry, Task, ActivityLog, TimeLog } from '../types'
 
 interface DayloStore {
   currentEntry: Partial<DailyEntry>
@@ -7,6 +7,9 @@ interface DayloStore {
   totalMinutes: number
   isModalOpen: boolean
   hasCompletedCheckIn: boolean
+  lastActiveDate: string | null
+  activityHistory: ActivityLog[]
+  timeHistory: TimeLog[]
   
   addActivity: (activity: Activity) => void
   removeActivity: (id: string) => void
@@ -25,6 +28,12 @@ interface DayloStore {
   saveEntry: () => void
   resetEntry: () => void
   setModalOpen: (isOpen: boolean) => void
+  checkAndResetIfNewDay: () => boolean
+  autoSave: () => Promise<void>
+  logActivity: (activity: Activity) => void
+  logTime: (activity: Activity) => void
+  getActivityHistory: (days?: number) => ActivityLog[]
+  getTimeHistory: (days?: number) => TimeLog[]
 }
 
 export const useDayloStore = create<DayloStore>((set, get) => ({
@@ -46,11 +55,19 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   totalMinutes: 0,
   isModalOpen: false,
   hasCompletedCheckIn: false,
+  lastActiveDate: new Date().toISOString().split('T')[0],
+  activityHistory: JSON.parse(localStorage.getItem('daylo-activity-history') || '[]'),
+  timeHistory: JSON.parse(localStorage.getItem('daylo-time-history') || '[]'),
 
   addActivity: (activity) => {
     set((state) => {
       const newActivities = [...state.selectedActivities, activity]
       const totalMinutes = newActivities.reduce((sum, a) => sum + a.duration, 0)
+      
+      // Registrar en historial
+      get().logActivity(activity)
+      get().logTime(activity)
+      
       return {
         selectedActivities: newActivities,
         totalMinutes,
@@ -79,9 +96,15 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
 
   updateActivityDuration: (id, duration) => {
     set((state) => {
-      const newActivities = state.selectedActivities.map((a) =>
-        a.id === id ? { ...a, duration } : a
-      )
+      const newActivities = state.selectedActivities.map((a) => {
+        if (a.id === id) {
+          const updatedActivity = { ...a, duration }
+          // Registrar actualización en historial
+          get().logTime(updatedActivity)
+          return updatedActivity
+        }
+        return a
+      })
       const totalMinutes = newActivities.reduce((sum, a) => sum + a.duration, 0)
       return {
         selectedActivities: newActivities,
@@ -96,9 +119,15 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
 
   updateActivityFacets: (id, facets, notes) => {
     set((state) => {
-      const newActivities = state.selectedActivities.map((a) =>
-        a.id === id ? { ...a, facets, notes } : a
-      )
+      const newActivities = state.selectedActivities.map((a) => {
+        if (a.id === id) {
+          const updatedActivity = { ...a, facets, notes }
+          // Registrar actualización en historial
+          get().logActivity(updatedActivity)
+          return updatedActivity
+        }
+        return a
+      })
       return {
         selectedActivities: newActivities,
         currentEntry: {
@@ -244,6 +273,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   },
 
   resetEntry: () => {
+    const today = new Date().toISOString().split('T')[0]
     set({
       currentEntry: {
         date: new Date(),
@@ -262,10 +292,129 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       selectedActivities: [],
       totalMinutes: 0,
       hasCompletedCheckIn: false,
+      lastActiveDate: today,
     })
+    // Limpiar check-in del día anterior
+    localStorage.removeItem('daylo-last-checkin')
+  },
+
+  checkAndResetIfNewDay: () => {
+    const state = get()
+    const today = new Date().toISOString().split('T')[0]
+    const lastDate = state.lastActiveDate || today
+    
+    if (lastDate !== today) {
+      // Es un nuevo día - resetear automáticamente
+      console.log('🌅 Nuevo día detectado - reseteando datos')
+      get().resetEntry()
+      return true // Retorna true si hubo reset
+    }
+    return false // No hubo reset
+  },
+
+  autoSave: async () => {
+    const state = get()
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Actualizar fecha de última actividad
+    set({ lastActiveDate: today })
+    
+    const entryData = {
+      id: state.currentEntry.id || Date.now().toString(),
+      date: new Date(),
+      activities: state.selectedActivities,
+      tasks: state.currentEntry.tasks || [],
+      diaryNote: state.currentEntry.diaryNote || '',
+      emotionalCheckIn: state.currentEntry.emotionalCheckIn,
+      dayIntention: state.currentEntry.dayIntention,
+      dayStory: state.currentEntry.dayStory,
+      reflection: state.currentEntry.reflection,
+    }
+    
+    // 1. Guardar en localStorage (rápido)
+    const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+    const todayIndex = entries.findIndex((e: any) => 
+      new Date(e.date).toISOString().split('T')[0] === today
+    )
+    
+    if (todayIndex >= 0) {
+      entries[todayIndex] = entryData
+    } else {
+      entries.push(entryData)
+    }
+    
+    localStorage.setItem('daylo-entries', JSON.stringify(entries))
+    
+    // 2. Guardar en Firebase (sincronización en background)
+    try {
+      const { saveDailyEntry } = await import('../services/firebaseService')
+      await saveDailyEntry(entryData)
+      console.log('✅ Auto-guardado en Firebase exitoso')
+    } catch (error) {
+      console.error('⚠️ Error auto-guardando en Firebase (datos seguros en local):', error)
+    }
   },
 
   setModalOpen: (isOpen: boolean) => {
     set({ isModalOpen: isOpen })
+  },
+
+  logActivity: (activity: Activity) => {
+    const log: ActivityLog = {
+      id: Date.now().toString(),
+      activityIcon: activity.icon,
+      activityLabel: activity.label,
+      duration: activity.duration,
+      facets: activity.facets,
+      notes: activity.notes,
+      energyImpact: activity.energyImpact,
+      timestamp: new Date(),
+      date: new Date().toISOString().split('T')[0],
+    }
+    
+    set((state) => {
+      const newHistory = [...state.activityHistory, log]
+      localStorage.setItem('daylo-activity-history', JSON.stringify(newHistory))
+      return { activityHistory: newHistory }
+    })
+  },
+
+  logTime: (activity: Activity) => {
+    const log: TimeLog = {
+      id: Date.now().toString(),
+      activityIcon: activity.icon,
+      activityLabel: activity.label,
+      duration: activity.duration,
+      timestamp: new Date(),
+      date: new Date().toISOString().split('T')[0],
+    }
+    
+    set((state) => {
+      const newHistory = [...state.timeHistory, log]
+      localStorage.setItem('daylo-time-history', JSON.stringify(newHistory))
+      return { timeHistory: newHistory }
+    })
+  },
+
+  getActivityHistory: (days = 30) => {
+    const state = get()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - days)
+    
+    return state.activityHistory.filter((log) => {
+      const logDate = new Date(log.date)
+      return logDate >= cutoffDate
+    })
+  },
+
+  getTimeHistory: (days = 30) => {
+    const state = get()
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - days)
+    
+    return state.timeHistory.filter((log) => {
+      const logDate = new Date(log.date)
+      return logDate >= cutoffDate
+    })
   },
 }))

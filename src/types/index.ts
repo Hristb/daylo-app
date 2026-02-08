@@ -67,3 +67,24 @@ export interface ActivityFacet {
   type: 'rating' | 'boolean'
   emoji: string
 }
+
+export interface ActivityLog {
+  id: string
+  activityIcon: ActivityIcon
+  activityLabel: string
+  duration: number
+  facets?: Record<string, number | boolean>
+  notes?: string
+  energyImpact?: 'drain' | 'neutral' | 'boost'
+  timestamp: Date
+  date: string
+}
+
+export interface TimeLog {
+  id: string
+  activityIcon: ActivityIcon
+  activityLabel: string
+  duration: number
+  timestamp: Date
+  date: string
+}

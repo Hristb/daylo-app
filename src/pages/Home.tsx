@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { useDayloStore } from '../store/dayloStore'
-import { ACTIVITY_OPTIONS, MOODS, getShuffledFacets } from '../utils/constants'
+import { ACTIVITY_OPTIONS, getShuffledFacets } from '../utils/constants'
 import ActivityCard from '../components/cards/ActivityCard'
 import TimeSlider from '../components/sliders/TimeSlider'
 import ActivityModal from '../components/modals/ActivityModal'
@@ -11,9 +11,12 @@ import ChecklistSection from '../components/ChecklistSection'
 import DiarySection from '../components/DiarySection'
 import EmotionalCheckIn from '../components/EmotionalCheckIn'
 import DayClosing from '../components/DayClosing'
-import { Sparkles, MessageCircle, Cloud, CloudOff, AlertCircle } from 'lucide-react'
+import HistoryLog from '../components/HistoryLog'
+import { Sparkles, Cloud, CloudOff, AlertCircle, Target, Clock } from 'lucide-react'
 import { ActivityOption, ActivityFacet } from '../types'
-import { saveDailyEntry, getTodayEntry } from '../services/firebaseService'
+import { getTodayEntry } from '../services/firebaseService'
+
+type TabType = 'purpose' | 'activities'
 
 // Función para obtener el contexto temporal del día
 function getTimeContext(): 'morning' | 'afternoon' | 'evening' {
@@ -33,39 +36,94 @@ export default function Home() {
     removeActivity,
     updateActivityDuration,
     updateActivityFacets,
-    setReflection,
-    saveEntry,
     setModalOpen,
     completeCheckIn,
+    checkAndResetIfNewDay,
+    autoSave,
   } = useDayloStore()
 
   const [selectedForEdit, setSelectedForEdit] = useState<ActivityOption | null>(null)
   const [tempFacets, setTempFacets] = useState<Record<string, number | boolean>>({})
   const [tempDuration, setTempDuration] = useState(0)
   const [tempNotes, setTempNotes] = useState('')
-  const [showReflection, setShowReflection] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced')
   const [timeContext] = useState<'morning' | 'afternoon' | 'evening'>(getTimeContext())
   const [shuffledFacets, setShuffledFacets] = useState<ActivityFacet[]>([])
   const [showEmotionalCheckIn, setShowEmotionalCheckIn] = useState(false)
   const [showDayClosing, setShowDayClosing] = useState(false)
   const [exceedsTimeWarning, setExceedsTimeWarning] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>('purpose')
 
-  // Cargar datos de Firebase al iniciar
+  // Cargar datos al iniciar - PRIMERO localStorage, LUEGO Firebase
   useEffect(() => {
     const loadTodayData = async () => {
-      try {
-        const todayData = await getTodayEntry()
-        if (todayData && todayData.activities) {
-          // Cargar actividades del día desde Firebase
-          todayData.activities.forEach(activity => {
+      // 1. Verificar si es un nuevo día y resetear automáticamente
+      const wasReset = checkAndResetIfNewDay()
+      
+      if (wasReset) {
+        console.log('✨ Inicio de nuevo día - datos reseteados')
+        return // Si se reseteó, no cargar nada más
+      }
+      
+      // 2. PRIMERO: Cargar desde localStorage (instantáneo, siempre actualizado)
+      const today = new Date().toISOString().split('T')[0]
+      const localEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
+      const todayLocal = localEntries.find((e: any) => 
+        new Date(e.date).toISOString().split('T')[0] === today
+      )
+      
+      if (todayLocal) {
+        console.log('📦 Cargando desde localStorage:', todayLocal)
+        
+        // Cargar actividades
+        if (todayLocal.activities && todayLocal.activities.length > 0) {
+          todayLocal.activities.forEach((activity: any) => {
             addActivity(activity)
           })
         }
+        
+        // Cargar tareas/prioridades
+        if (todayLocal.tasks && todayLocal.tasks.length > 0) {
+          const { currentEntry } = useDayloStore.getState()
+          useDayloStore.setState({
+            currentEntry: {
+              ...currentEntry,
+              tasks: todayLocal.tasks
+            }
+          })
+          console.log('✅ Tareas cargadas:', todayLocal.tasks.length)
+        }
+        
+        // Cargar notas del diario
+        if (todayLocal.diaryNote) {
+          useDayloStore.getState().setDiaryNote(todayLocal.diaryNote)
+        }
+        
+        // Cargar emotional check-in
+        if (todayLocal.emotionalCheckIn) {
+          useDayloStore.getState().setEmotionalCheckIn(todayLocal.emotionalCheckIn)
+        }
+        
+        // Cargar day intention
+        if (todayLocal.dayIntention) {
+          useDayloStore.getState().setDayIntention(todayLocal.dayIntention)
+        }
+        
+        // Cargar day story
+        if (todayLocal.dayStory) {
+          useDayloStore.getState().setDayStory(todayLocal.dayStory)
+        }
+      }
+      
+      // 3. LUEGO: Sincronizar con Firebase en background
+      try {
+        const todayData = await getTodayEntry()
+        if (todayData && todayData.activities) {
+          console.log('☁️ Firebase sincronizado')
+        }
       } catch (error) {
-        console.error('Error cargando datos de hoy:', error)
+        console.log('⚠️ Firebase no disponible, usando datos locales')
       }
     }
     loadTodayData()
@@ -75,7 +133,10 @@ export default function Home() {
     const lastCheckIn = localStorage.getItem('daylo-last-checkin')
     
     if (timeContext === 'morning' && !hasCompletedCheckIn && lastCheckIn !== today) {
-      setTimeout(() => setShowEmotionalCheckIn(true), 1000)
+      setTimeout(() => {
+        setShowEmotionalCheckIn(true)
+        setModalOpen(true) // Ocultar navegación
+      }, 1000)
     }
   }, [])
 
@@ -102,152 +163,96 @@ export default function Home() {
     setModalOpen(true)
   }
 
-  const handleSaveActivity = () => {
-    if (!selectedForEdit) return
+  const handleSaveActivity = async () => {
+    if (!selectedForEdit || isSaving) return
 
     const existing = selectedActivities.find(a => a.icon === selectedForEdit.id)
     
-    // VALIDACIÓN SUAVE: Advertir si excede 24 horas
+    // VALIDACIÓN: Verificar si excede 24 horas ANTES de guardar
     const MAX_MINUTES_PER_DAY = 1440 // 24 horas
     let newTotalMinutes = totalMinutes
     
     if (existing) {
+      // Al editar: restar duración anterior y sumar nueva
       newTotalMinutes = totalMinutes - existing.duration + tempDuration
     } else {
+      // Al agregar: sumar nueva duración
       newTotalMinutes = totalMinutes + tempDuration
     }
     
-    // Mostrar advertencia suave en lugar de bloquear
+    console.log('🔍 Validación 24h:', { 
+      totalActual: totalMinutes, 
+      duracionAnterior: existing?.duration || 0,
+      duracionNueva: tempDuration,
+      totalNuevo: newTotalMinutes,
+      excede: newTotalMinutes > MAX_MINUTES_PER_DAY
+    })
+    
+    // BLOQUEAR si excede 24 horas
     const exceedsLimit = newTotalMinutes > MAX_MINUTES_PER_DAY
     
-    if (existing) {
-      // Actualizar existente
-      updateActivityDuration(existing.id, tempDuration)
-      updateActivityFacets(existing.id, tempFacets, tempNotes)
-    } else {
-      // Agregar nueva
-      addActivity({
-        id: Date.now().toString(),
-        icon: selectedForEdit.id,
-        label: selectedForEdit.label,
-        duration: tempDuration,
-        color: selectedForEdit.color,
-        facets: tempFacets,
-        notes: tempNotes,
-      })
-    }
-
-    // Mostrar advertencia si excede tiempo
     if (exceedsLimit) {
+      // NO cerrar el modal de actividad, mostrar advertencia ENCIMA
       setExceedsTimeWarning(true)
-      setTimeout(() => setExceedsTimeWarning(false), 4000)
+      return // NO guardar
     }
-
-    // Guardar en Firebase y localStorage
-    setTimeout(async () => {
-      setSyncStatus('syncing')
-      const today = new Date().toISOString().split('T')[0]
-      const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
-      
-      const updatedActivities = existing 
-        ? selectedActivities.map(a => a.icon === selectedForEdit.id 
-            ? { ...a, duration: tempDuration, facets: tempFacets, notes: tempNotes }
-            : a)
-        : [...selectedActivities, {
-            id: Date.now().toString(),
-            icon: selectedForEdit.id,
-            label: selectedForEdit.label,
-            duration: tempDuration,
-            color: selectedForEdit.color,
-            facets: tempFacets,
-            notes: tempNotes,
-          }]
-      
-      const todayIndex = entries.findIndex((e: any) => 
-        new Date(e.date).toISOString().split('T')[0] === today
-      )
-      
-      const entryData = {
-        id: Date.now().toString(),
-        date: new Date(),
-        activities: updatedActivities,
-        reflection: {
-          highlights: '',
-          mood: '😊',
-        },
-      }
-      
-      if (todayIndex >= 0) {
-        entries[todayIndex] = entryData
+    
+    // Solo llega aquí si NO excede el límite
+    setIsSaving(true)
+    setSyncStatus('syncing')
+    
+    try {
+      if (existing) {
+        // Actualizar existente
+        updateActivityDuration(existing.id, tempDuration)
+        updateActivityFacets(existing.id, tempFacets, tempNotes)
       } else {
-        entries.push(entryData)
+        // Agregar nueva
+        addActivity({
+          id: Date.now().toString(),
+          icon: selectedForEdit.id,
+          label: selectedForEdit.label,
+          duration: tempDuration,
+          color: selectedForEdit.color,
+          facets: tempFacets,
+          notes: tempNotes,
+        })
       }
-      
-      // Guardar en localStorage
-      localStorage.setItem('daylo-entries', JSON.stringify(entries))
-      
-      // Guardar en Firebase
-      try {
-        await saveDailyEntry(entryData)
-        setSyncStatus('synced')
-      } catch (error) {
-        console.error('Error guardando en Firebase:', error)
-        setSyncStatus('offline')
-      }
-    }, 100)
 
-    // Cerrar modal
-    setSelectedForEdit(null)
-    setModalOpen(false)
-    setTempFacets({})
-    setTempNotes('')
+      // GUARDAR a localStorage Y Firebase - ESPERAR a que termine
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await autoSave()
+      setSyncStatus('synced')
+      console.log('✅ Actividad guardada en Firebase')
+
+      // Cerrar modal solo si guarda exitosamente
+      setSelectedForEdit(null)
+      setModalOpen(false)
+      setTempFacets({})
+      setTempNotes('')
+    } catch (error) {
+      console.error('❌ Error guardando:', error)
+      setSyncStatus('offline')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleDeleteActivity = () => {
+  const handleDeleteActivity = async () => {
     if (!selectedForEdit) return
     const existing = selectedActivities.find(a => a.icon === selectedForEdit.id)
     if (existing) {
       removeActivity(existing.id)
       
-      // Actualizar localStorage también
-      setTimeout(() => {
-        const today = new Date().toISOString().split('T')[0]
-        const entries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
-        
-        const todayIndex = entries.findIndex((e: any) => 
-          new Date(e.date).toISOString().split('T')[0] === today
-        )
-        
-        if (todayIndex >= 0) {
-          const updatedActivities = selectedActivities.filter(a => a.id !== existing.id)
-          entries[todayIndex] = {
-            ...entries[todayIndex],
-            activities: updatedActivities,
-          }
-          localStorage.setItem('daylo-entries', JSON.stringify(entries))
-        }
-      }, 100)
+      // GUARDAR - ESPERAR a que termine
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await autoSave()
+      console.log('✅ Actividad eliminada y guardado en Firebase')
     }
     setSelectedForEdit(null)
     setModalOpen(false)
   }
 
-  const handleSave = async () => {
-    if (selectedActivities.length === 0) return
-    
-    setIsSaving(true)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    saveEntry()
-    setIsSaving(false)
-    setShowSuccess(true)
-    
-    setTimeout(() => {
-      setShowSuccess(false)
-      setShowReflection(false)
-    }, 2000)
-  }
-
-  const canProceed = selectedActivities.length > 0
   // FIXED: Usar facets fijas que se establecieron al abrir el modal
   const facets = shuffledFacets
 
@@ -318,7 +323,9 @@ export default function Home() {
           <EmotionalCheckIn
             onComplete={() => {
               setShowEmotionalCheckIn(false)
+              setModalOpen(false) // Mostrar navegación de nuevo
               completeCheckIn()
+              autoSave() // Guardar después del check-in
             }}
           />
         )}
@@ -330,33 +337,76 @@ export default function Home() {
           <DayClosing
             onComplete={() => {
               setShowDayClosing(false)
+              setModalOpen(false) // Mostrar navegación de nuevo
+              autoSave() // Guardar después del cierre
             }}
           />
         )}
       </AnimatePresence>
 
-      {/* Time Exceeds Warning */}
+      {/* Modal de Advertencia 24h - Centrado */}
       <AnimatePresence>
         {exceedsTimeWarning && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 max-w-md w-full mx-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
           >
-            <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 shadow-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-orange-800">
-                    Registraste más de 24 horas
-                  </p>
-                  <p className="text-xs text-orange-700 mt-1">
-                    No pasa nada, a veces es difícil calcular. Puedes ajustarlo después.
-                  </p>
-                </div>
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full"
+            >
+              {/* Icono */}
+              <div className="flex justify-center mb-4">
+                <motion.div
+                  className="w-20 h-20 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <AlertCircle className="w-10 h-10 text-orange-600" strokeWidth={2.5} />
+                </motion.div>
               </div>
-            </div>
+
+              {/* Título */}
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                ⏰ Superaste las 24 horas
+              </h3>
+
+              {/* Mensaje */}
+              <p className="text-sm text-gray-600 text-center mb-2">
+                {(() => {
+                  const existing = selectedActivities.find(a => a.icon === selectedForEdit?.id)
+                  const newTotal = existing 
+                    ? totalMinutes - existing.duration + tempDuration
+                    : totalMinutes + tempDuration
+                  return (
+                    <>
+                      Estás intentando registrar <span className="font-semibold text-orange-600">{Math.floor(newTotal / 60)}h {newTotal % 60}min</span> en total.
+                    </>
+                  )
+                })()}
+              </p>
+              <p className="text-xs text-gray-500 text-center mb-6">
+                Un día tiene solo 24 horas. Ajusta la duración de esta actividad o elimina otra para continuar.
+              </p>
+
+              {/* Botón Entendido */}
+              <motion.button
+                onClick={() => {
+                  setExceedsTimeWarning(false)
+                  // NO cerrar el modal de actividad, permitir que el usuario ajuste
+                }}
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                ✓ Entendido, voy a ajustar
+              </motion.button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -403,106 +453,328 @@ export default function Home() {
         </motion.div>
       )}
 
-      {/* Button to open Day Closing */}
-      {timeContext === 'evening' && selectedActivities.length > 0 && !currentEntry.dayStory?.mostSignificant && (
-        <motion.button
-          onClick={() => setShowDayClosing(true)}
-          className="w-full py-4 bg-gradient-to-r from-indigo-400 to-purple-400 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          🌙 Cerrar mi día con reflexión
-        </motion.button>
-      )}
-
-      {/* Checklist Section - Tareas del día */}
-      <ChecklistSection timeContext={timeContext} />
-
-      {/* Activity Grid */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="daylo-card"
-      >
-        <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-          <Sparkles size={20} className="text-pastel-purple" />
-          ¿Qué hiciste hoy?
-        </h3>
+      {/* Reminder Banner - Invitación suave a cerrar el día (8pm-11pm) */}
+      {(() => {
+        const currentHour = new Date().getHours()
+        const isReminderTime = currentHour >= 20 && currentHour < 23 // 8pm a 11pm
+        const hasActivities = selectedActivities.length > 0
+        const hasNotClosed = !currentEntry.dayStory?.mostSignificant
         
-        <div className="grid grid-cols-3 gap-3">
-          {ACTIVITY_OPTIONS.map((activity, index) => (
+        if (timeContext === 'evening' && isReminderTime && hasActivities && hasNotClosed) {
+          return (
             <motion.div
-              key={activity.id}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-indigo-200"
             >
-              <ActivityCard
-                activity={activity}
-                isSelected={selectedActivities.some(a => a.icon === activity.id)}
-                onToggle={() => handleActivityClick(activity)}
-              />
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Resumen de actividades seleccionadas */}
-        {selectedActivities.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-6 pt-4 border-t border-gray-200 space-y-3"
-          >
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-gray-600">
-                {selectedActivities.length} {selectedActivities.length === 1 ? 'actividad' : 'actividades'}
-              </span>
-              <span className={`text-xl font-bold ${
-                totalMinutes > 1440 ? 'text-red-600' : 
-                totalMinutes > 1200 ? 'text-orange-600' : 
-                'text-purple-600'
-              }`}>
-                {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
-              </span>
-            </div>
-            
-            {/* Barra de progreso del día (24h) */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Tiempo del día</span>
-                <span>{Math.round((totalMinutes / 1440) * 100)}% de 24h</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((totalMinutes / 1440) * 100, 100)}%` }}
-                  className={`h-full rounded-full ${
-                    totalMinutes > 1440 ? 'bg-red-500' : 
-                    totalMinutes > 1200 ? 'bg-orange-400' : 
-                    totalMinutes > 960 ? 'bg-yellow-400' : 
-                    'bg-green-400'
-                  }`}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              {totalMinutes > 1200 && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`text-xs ${
-                    totalMinutes > 1440 ? 'text-red-600 font-semibold' : 'text-orange-600'
-                  }`}
+              <div className="flex items-start gap-4">
+                <motion.span 
+                  className="text-3xl"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
-                  {totalMinutes > 1440 
-                    ? '⚠️ Has excedido las 24 horas del día' 
-                    : '⚡ Te estás acercando al límite de 24h'}
-                </motion.p>
+                  🌙
+                </motion.span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-800 mb-1">
+                    ¿Tomas un momento para cerrar tu día?
+                  </p>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Reflexionar antes de dormir te ayuda a procesar lo vivido y descansar mejor
+                  </p>
+                  <motion.button
+                    onClick={() => {
+                      setShowDayClosing(true)
+                      setModalOpen(true)
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-indigo-400 to-purple-400 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all text-sm"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    ✨ Sí, cerrar mi día ahora
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          )
+        }
+        
+        // Botón siempre visible si hay actividades y no ha cerrado (fuera de horario reminder)
+        if (timeContext === 'evening' && hasActivities && hasNotClosed && !isReminderTime) {
+          return (
+            <motion.button
+              onClick={() => {
+                setShowDayClosing(true)
+                setModalOpen(true)
+              }}
+              className="w-full py-4 bg-gradient-to-r from-indigo-400 to-purple-400 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              🌙 Cerrar mi día con reflexión
+            </motion.button>
+          )
+        }
+        
+        return null
+      })()}
+
+      {/* Tabs System - Separar Propósito de Actividades */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 overflow-hidden"
+      >
+        {/* Tab Headers */}
+        <div className="flex border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <button
+            onClick={() => setActiveTab('purpose')}
+            className={`flex-1 py-4 px-6 font-semibold transition-all relative ${
+              activeTab === 'purpose'
+                ? 'text-purple-700 bg-purple-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Target size={20} />
+              <span>Propósito</span>
+            </div>
+            {activeTab === 'purpose' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('activities')}
+            className={`flex-1 py-4 px-6 font-semibold transition-all relative ${
+              activeTab === 'activities'
+                ? 'text-blue-700 bg-blue-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Clock size={20} />
+              <span>Lo que hice hoy</span>
+              {selectedActivities.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                  {selectedActivities.length}
+                </span>
               )}
             </div>
-          </motion.div>
-        )}
+            {activeTab === 'activities' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-teal-500"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            )}
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'purpose' ? (
+            <motion.div
+              key="purpose"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+              className="p-6"
+            >
+              {/* Checklist Section - Tareas del día */}
+              <ChecklistSection timeContext={timeContext} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="activities"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="p-6"
+            >
+              {/* Activity Grid */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <Sparkles size={20} className="text-pastel-purple" />
+                  ¿Qué hiciste hoy?
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {ACTIVITY_OPTIONS.map((activity, index) => (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <ActivityCard
+                        activity={activity}
+                        isSelected={selectedActivities.some(a => a.icon === activity.id)}
+                        onToggle={() => handleActivityClick(activity)}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Resumen de actividades seleccionadas */}
+                {selectedActivities.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-6 pt-4 border-t border-gray-200 space-y-3"
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-gray-600">
+                        {selectedActivities.length} {selectedActivities.length === 1 ? 'actividad' : 'actividades'}
+                      </span>
+                      <span className={`text-xl font-bold ${
+                        totalMinutes > 1440 ? 'text-red-600' : 
+                        totalMinutes > 1200 ? 'text-orange-600' : 
+                        'text-purple-600'
+                      }`}>
+                        {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
+                      </span>
+                    </div>
+                    
+                    {/* Barra de progreso del día (24h) - MEJORADA */}
+                    <div className="space-y-3">
+                      {/* Header con estadísticas */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <motion.div
+                            className="w-8 h-8 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center"
+                            animate={{ rotate: [0, 360] }}
+                            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+                          >
+                            <span className="text-sm">⏰</span>
+                          </motion.div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-600">Tiempo registrado</p>
+                            <p className="text-sm font-bold text-gray-800">
+                              {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}min de tu día
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Disponible</p>
+                          <p className={`text-sm font-semibold ${
+                            totalMinutes > 1440 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {totalMinutes > 1440 
+                              ? `-${Math.floor((totalMinutes - 1440) / 60)}h ${(totalMinutes - 1440) % 60}m`
+                              : `${Math.floor((1440 - totalMinutes) / 60)}h ${(1440 - totalMinutes) % 60}m`
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Barra de progreso mejorada con etiquetas */}
+                      <div className="relative">
+                        {/* Etiquetas de tiempo del día */}
+                        <div className="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
+                          <span>🌅 6am</span>
+                          <span>☀️ 12pm</span>
+                          <span>🌆 6pm</span>
+                          <span>🌙 12am</span>
+                        </div>
+                        
+                        {/* Barra con gradiente y animación */}
+                        <div className="relative w-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded-full h-4 overflow-hidden shadow-inner">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ 
+                              width: `${Math.min((totalMinutes / 1440) * 100, 100)}%`,
+                            }}
+                            className={`h-full rounded-full relative ${
+                              totalMinutes > 1440 
+                                ? 'bg-gradient-to-r from-red-400 via-orange-500 to-red-600' 
+                                : totalMinutes > 1200 
+                                ? 'bg-gradient-to-r from-orange-300 via-yellow-400 to-orange-500' 
+                                : totalMinutes > 960 
+                                ? 'bg-gradient-to-r from-yellow-300 via-green-400 to-green-500'
+                                : 'bg-gradient-to-r from-green-300 via-teal-400 to-blue-400'
+                            }`}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          >
+                            {/* Brillo animado */}
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
+                              animate={{ x: ['-100%', '200%'] }}
+                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                            />
+                          </motion.div>
+                        </div>
+                        
+                        {/* Marcadores de límites */}
+                        <div className="relative w-full h-1 mt-1">
+                          <div className="absolute left-[66.66%] top-0 w-px h-full bg-yellow-300 opacity-50" />
+                          <div className="absolute left-[83.33%] top-0 w-px h-full bg-orange-300 opacity-50" />
+                          <div className="absolute left-[100%] top-0 w-px h-full bg-red-400" />
+                        </div>
+                      </div>
+
+                      {/* Mensaje contextual mejorado */}
+                      <AnimatePresence>
+                        {totalMinutes > 1200 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10, height: 0 }}
+                            animate={{ opacity: 1, y: 0, height: 'auto' }}
+                            exit={{ opacity: 0, y: -10, height: 0 }}
+                            className={`rounded-xl p-3 border-2 ${
+                              totalMinutes > 1440 
+                                ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 
+                                : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-orange-200'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <motion.span
+                                className="text-xl"
+                                animate={{ 
+                                  scale: totalMinutes > 1440 ? [1, 1.2, 1] : 1,
+                                  rotate: totalMinutes > 1440 ? [0, -10, 10, 0] : 0,
+                                }}
+                                transition={{ duration: 0.5, repeat: totalMinutes > 1440 ? Infinity : 0, repeatDelay: 1 }}
+                              >
+                                {totalMinutes > 1440 ? '⚠️' : '⚡'}
+                              </motion.span>
+                              <div className="flex-1">
+                                <p className={`text-xs font-semibold ${
+                                  totalMinutes > 1440 ? 'text-red-700' : 'text-orange-700'
+                                }`}>
+                                  {totalMinutes > 1440 
+                                    ? '¡Superaste las 24 horas!' 
+                                    : 'Te estás acercando al límite del día'}
+                                </p>
+                                <p className={`text-[11px] mt-0.5 ${
+                                  totalMinutes > 1440 ? 'text-red-600' : 'text-orange-600'
+                                }`}>
+                                  {totalMinutes > 1440 
+                                    ? 'Revisa las duraciones de tus actividades antes de agregar más' 
+                                    : `Quedan ${Math.floor((1440 - totalMinutes) / 60)}h ${(1440 - totalMinutes) % 60}m disponibles`}
+                                  </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
+
+      {/* Checklist Section - Tareas del día */}
+
+      {/* Historial de Actividades */}
+      <HistoryLog />
 
       {/* Activity Detail Modal */}
       <ActivityModal
@@ -588,9 +860,10 @@ export default function Home() {
               {selectedActivities.some(a => a.icon === selectedForEdit?.id) && (
                 <motion.button
                   onClick={handleDeleteActivity}
-                  className="px-6 py-4 rounded-full font-bold text-base bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex items-center gap-2 shadow-lg"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  disabled={isSaving}
+                  className="px-6 py-4 rounded-full font-bold text-base bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={!isSaving ? { scale: 1.05 } : {}}
+                  whileTap={!isSaving ? { scale: 0.95 } : {}}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                 >
@@ -599,18 +872,33 @@ export default function Home() {
               )}
               <motion.button
                 onClick={handleSaveActivity}
-                className="flex-1 py-5 rounded-full font-bold text-xl flex items-center justify-center gap-3 shadow-2xl border-2 border-white"
+                disabled={isSaving}
+                className="flex-1 py-5 rounded-full font-bold text-xl flex items-center justify-center gap-3 shadow-2xl border-2 border-white disabled:opacity-70 disabled:cursor-not-allowed relative overflow-hidden"
                 style={{
                   background: `linear-gradient(135deg, ${selectedForEdit?.color}, ${selectedForEdit?.color}DD)`,
                   color: '#1F2937'
                 }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={!isSaving ? { scale: 1.05, y: -2 } : {}}
+                whileTap={!isSaving ? { scale: 0.95 } : {}}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? 'Actualizar' : 'Guardar'}</span>
+                {isSaving ? (
+                  <>
+                    <motion.div
+                      className="w-6 h-6 border-3 border-gray-800 border-t-transparent rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-6 h-6" />
+                    <span>{selectedActivities.some(a => a.icon === selectedForEdit?.id) ? 'Actualizar' : 'Guardar'}</span>
+                  </>
+                )}
               </motion.button>
             </div>
           </div>
@@ -619,141 +907,8 @@ export default function Home() {
 
       {/* Time Sliders - REMOVED (now inside modal) */}
 
-      {/* Reflection Section */}
-      <AnimatePresence>
-        {canProceed && !showReflection && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={() => setShowReflection(true)}
-            className="daylo-button-primary w-full flex items-center justify-center gap-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <MessageCircle size={20} />
-            Agregar reflexión
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showReflection && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="daylo-card space-y-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-700">
-              💭 Reflexiona sobre tu día
-            </h3>
-
-            {/* Mood Selector */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-600">
-                ¿Cómo te sentiste?
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {MOODS.map((mood) => (
-                  <motion.button
-                    key={mood.emoji}
-                    onClick={() => setReflection({ mood: mood.emoji })}
-                    className={`px-4 py-2 rounded-full text-2xl transition-all ${
-                      currentEntry.reflection?.mood === mood.emoji
-                        ? 'bg-pastel-yellow scale-110 shadow-lg'
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    title={mood.label}
-                  >
-                    {mood.emoji}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-
-            {/* Highlights */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-600">
-                ¿Qué rescatas del día?
-              </label>
-              <textarea
-                value={currentEntry.reflection?.highlights || ''}
-                onChange={(e) => setReflection({ highlights: e.target.value })}
-                placeholder="Algo breve que te haya gustado o aprendido..."
-                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-pastel-purple focus:outline-none resize-none"
-                rows={3}
-                maxLength={200}
-              />
-              <div className="text-xs text-gray-400 text-right">
-                {currentEntry.reflection?.highlights?.length || 0}/200
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <motion.button
-              onClick={handleSave}
-              disabled={isSaving || !currentEntry.reflection?.highlights}
-              className="daylo-button-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {isSaving ? (
-                <motion.span
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                >
-                  Guardando...
-                </motion.span>
-              ) : (
-                '✨ Guardar mi día'
-              )}
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Diary Section - Diario personal (al final) */}
       <DiarySection timeContext={timeContext} />
-
-      {/* Success Animation */}
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
-          >
-            <motion.div
-              className="daylo-card text-center p-8"
-              animate={{
-                scale: [1, 1.1, 1],
-                rotate: [0, 5, -5, 0],
-              }}
-              transition={{ duration: 0.5 }}
-            >
-              <motion.div
-                className="text-6xl mb-4"
-                animate={{
-                  scale: [0, 1.2, 1],
-                  rotate: [0, 360],
-                }}
-              >
-                🎉
-              </motion.div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                ¡Día guardado!
-              </h3>
-              <p className="text-gray-600">
-                Sigue así, cada día cuenta ✨
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

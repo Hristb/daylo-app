@@ -10,27 +10,79 @@ interface ChecklistSectionProps {
 export default function ChecklistSection({ timeContext }: ChecklistSectionProps) {
   const [newTaskText, setNewTaskText] = useState('')
   const [newPersonalAction, setNewPersonalAction] = useState('')
-  const { currentEntry, addTask, toggleTask, removeTask } = useDayloStore()
+  const [isTaskSaving, setIsTaskSaving] = useState(false)
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null)
+  const { currentEntry, addTask, toggleTask, removeTask, autoSave } = useDayloStore()
   const tasks = currentEntry.tasks || []
   
   const priorities = tasks.filter(t => t.isPriority && !t.isPersonal)
   const personalAction = tasks.find(t => t.isPersonal)
   const otherTasks = tasks.filter(t => !t.isPriority && !t.isPersonal)
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (newTaskText.trim()) {
-      const isPriority = priorities.length < 3 && timeContext === 'morning'
-      addTask(newTaskText.trim(), isPriority, false)
-      setNewTaskText('')
+    if (newTaskText.trim() && !isTaskSaving) {
+      setIsTaskSaving(true)
+      try {
+        const isPriority = priorities.length < 3 && timeContext === 'morning'
+        addTask(newTaskText.trim(), isPriority, false)
+        setNewTaskText('')
+        await new Promise(resolve => setTimeout(resolve, 100))
+        await autoSave()
+        console.log('✅ Tarea agregada y guardada')
+      } catch (error) {
+        console.error('❌ Error guardando tarea:', error)
+      } finally {
+        setIsTaskSaving(false)
+      }
     }
   }
 
-  const handleAddPersonalAction = (e: React.FormEvent) => {
+  const handleAddPersonalAction = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (newPersonalAction.trim() && !personalAction) {
-      addTask(newPersonalAction.trim(), false, true)
-      setNewPersonalAction('')
+    if (newPersonalAction.trim() && !personalAction && !isTaskSaving) {
+      setIsTaskSaving(true)
+      try {
+        addTask(newPersonalAction.trim(), false, true)
+        setNewPersonalAction('')
+        await new Promise(resolve => setTimeout(resolve, 100))
+        await autoSave()
+        console.log('✅ Acción personal agregada y guardada')
+      } catch (error) {
+        console.error('❌ Error guardando acción:', error)
+      } finally {
+        setIsTaskSaving(false)
+      }
+    }
+  }
+
+  const handleToggleTask = async (taskId: string) => {
+    if (savingTaskId) return // Evitar múltiples clicks
+    setSavingTaskId(taskId)
+    try {
+      toggleTask(taskId)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await autoSave()
+      console.log('✅ Tarea marcada y guardada')
+    } catch (error) {
+      console.error('❌ Error guardando cambio de tarea:', error)
+    } finally {
+      setSavingTaskId(null)
+    }
+  }
+
+  const handleRemoveTask = async (taskId: string) => {
+    if (savingTaskId) return // Evitar múltiples clicks
+    setSavingTaskId(taskId)
+    try {
+      removeTask(taskId)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await autoSave()
+      console.log('✅ Tarea eliminada y guardada')
+    } catch (error) {
+      console.error('❌ Error eliminando tarea:', error)
+    } finally {
+      setSavingTaskId(null)
     }
   }
 
@@ -89,14 +141,21 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
       }`}
     >
       <button
-        onClick={() => toggleTask(task.id)}
-        className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+        onClick={() => handleToggleTask(task.id)}
+        disabled={savingTaskId === task.id}
+        className={`flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all relative ${
           task.completed
             ? 'bg-green-500 border-green-500'
             : 'border-gray-300 hover:border-purple-400'
-        }`}
+        } ${savingTaskId === task.id ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
-        {task.completed && (
+        {savingTaskId === task.id ? (
+          <motion.div
+            className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+          />
+        ) : task.completed ? (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -104,7 +163,7 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
           >
             <Check className="w-4 h-4 text-white" strokeWidth={3} />
           </motion.div>
-        )}
+        ) : null}
       </button>
       <span
         className={`flex-1 text-sm ${
@@ -116,8 +175,11 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
         {task.text}
       </span>
       <button
-        onClick={() => removeTask(task.id)}
-        className="flex-shrink-0 w-6 h-6 rounded-lg hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+        onClick={() => handleRemoveTask(task.id)}
+        disabled={savingTaskId === task.id}
+        className={`flex-shrink-0 w-6 h-6 rounded-lg hover:bg-red-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors ${
+          savingTaskId === task.id ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
       >
         <X className="w-4 h-4" />
       </button>

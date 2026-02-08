@@ -16,8 +16,8 @@ interface UserStats {
 }
 
 export default function Profile() {
-  const userName = localStorage.getItem('userName') || 'Usuario'
-  const userEmail = localStorage.getItem('userEmail') || ''
+  const userName = localStorage.getItem('daylo-user-name') || 'Usuario'
+  const userEmail = localStorage.getItem('daylo-user-email') || ''
   const [stats, setStats] = useState<UserStats>({
     totalDays: 0,
     currentStreak: 0,
@@ -32,19 +32,45 @@ export default function Profile() {
 
   useEffect(() => {
     loadUserStats()
+    
+    // Recargar cuando el componente se vuelve visible
+    // (útil cuando navegas desde Home después de editar)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadUserStats()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   const loadUserStats = async () => {
     try {
-      const entries = await getAllUserEntries()
+      // 1. PRIMERO: Leer de localStorage (instantáneo, siempre actualizado)
+      const localEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
       
-      if (entries.length === 0) {
+      let entriesToUse = localEntries
+      
+      // 2. LUEGO: Intentar sincronizar con Firebase en background
+      try {
+        const firebaseEntries = await getAllUserEntries()
+        if (firebaseEntries.length > 0) {
+          // Si Firebase tiene datos, usar esos (pueden estar más completos)
+          entriesToUse = firebaseEntries
+        }
+      } catch (firebaseError) {
+        console.log('⚠️ Firebase no disponible, usando datos locales')
+        // Si falla Firebase, ya tenemos localStorage
+      }
+      
+      if (entriesToUse.length === 0) {
         setIsLoading(false)
         return
       }
 
-      // Calcular estadísticas
-      const totalDays = entries.length
+      // Calcular estadísticas con los datos disponibles
+      const totalDays = entriesToUse.length
       let totalActivities = 0
       let totalTasks = 0
       let completedTasks = 0
@@ -52,7 +78,7 @@ export default function Profile() {
       let ratingCount = 0
       const activityCount: Record<string, number> = {}
 
-      entries.forEach((entry: any) => {
+      entriesToUse.forEach((entry: any) => {
         // Actividades
         totalActivities += entry.activities?.length || 0
         entry.activities?.forEach((act: any) => {
@@ -76,7 +102,7 @@ export default function Profile() {
       , '')
 
       // Calcular rachas
-      const sortedEntries = entries.sort((a: any, b: any) => 
+      const sortedEntries = entriesToUse.sort((a: any, b: any) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
       )
 
@@ -117,9 +143,16 @@ export default function Profile() {
 
   const handleLogout = () => {
     if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      localStorage.removeItem('userName')
-      localStorage.removeItem('userEmail')
-      window.location.reload()
+      // Limpiar TODAS las claves relacionadas
+      localStorage.removeItem('daylo-user-name')
+      localStorage.removeItem('daylo-user-email')
+      localStorage.removeItem('daylo-entries')
+      localStorage.removeItem('daylo-last-checkin')
+      localStorage.removeItem('userName')  // Legacy
+      localStorage.removeItem('userEmail') // Legacy
+      
+      // Redirigir a /hoy - el Layout detectará que no hay usuario y mostrará el modal de bienvenida
+      window.location.href = '/hoy'
     }
   }
 
@@ -139,14 +172,46 @@ export default function Profile() {
           </div>
 
           <div className="relative z-10 flex flex-col items-center text-center">
-            {/* Avatar */}
+            {/* Avatar con efectos mejorados */}
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200 }}
-              className="mb-4"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 12 }}
+              className="mb-4 relative group"
             >
-              <Avatar name={userName} email={userEmail} size={140} className="drop-shadow-2xl" />
+              {/* Anillo decorativo animado */}
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                animate={{ 
+                  rotate: 360,
+                  scale: [1, 1.05, 1],
+                }}
+                transition={{ 
+                  rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+                  scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+                }}
+                style={{
+                  background: 'conic-gradient(from 0deg, rgba(255,255,255,0.4), transparent, rgba(255,255,255,0.4))',
+                  filter: 'blur(2px)',
+                  transform: 'scale(1.15)',
+                }}
+              />
+              
+              {/* Avatar principal */}
+              <div className="relative">
+                <Avatar name={userName} email={userEmail} size={140} className="drop-shadow-2xl ring-4 ring-white/30" />
+                
+                {/* Badge de identicon */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: 'spring' }}
+                  className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-xl"
+                  title="Tu identicon único generado automáticamente"
+                >
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Nombre */}

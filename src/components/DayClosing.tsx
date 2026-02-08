@@ -8,17 +8,21 @@ interface DayClosingProps {
 }
 
 export default function DayClosing({ onComplete }: DayClosingProps) {
-  const { setDayStory } = useDayloStore()
+  const { setDayStory, autoSave } = useDayloStore()
   const [howStarted, setHowStarted] = useState('')
   const [mostSignificant, setMostSignificant] = useState('')
   const [howClosing, setHowClosing] = useState('')
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setDayStory({
       howStarted,
       mostSignificant,
       howClosing,
     })
+    // Esperar a que se guarde antes de cerrar el modal
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await autoSave()
+    console.log('✅ Historia del día guardada')
     onComplete()
   }
 

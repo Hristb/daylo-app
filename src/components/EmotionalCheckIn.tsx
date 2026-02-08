@@ -17,23 +17,29 @@ const FEELINGS = [
 ]
 
 export default function EmotionalCheckIn({ onComplete }: EmotionalCheckInProps) {
-  const { setEmotionalCheckIn, setDayIntention } = useDayloStore()
+  const { setEmotionalCheckIn, setDayIntention, autoSave } = useDayloStore()
   const [step, setStep] = useState(1)
   const [selectedFeeling, setSelectedFeeling] = useState('')
   const [mentalNoise, setMentalNoise] = useState('')
   const [needsToday, setNeedsToday] = useState('')
   const [intention, setIntention] = useState('')
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 1 && selectedFeeling) {
       setEmotionalCheckIn({
         feeling: selectedFeeling,
         mentalNoise: mentalNoise || undefined,
         needsToday: needsToday || undefined,
       })
+      // Guardar inmediatamente el check-in emocional
+      await autoSave()
       setStep(2)
     } else if (step === 2 && intention) {
       setDayIntention(intention)
+      // Esperar a que se guarde antes de cerrar el modal
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await autoSave()
+      console.log('✅ Intención guardada:', intention)
       onComplete()
     }
   }
