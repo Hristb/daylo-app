@@ -12,12 +12,14 @@ interface DayloStore {
   timeHistory: TimeLog[]
   
   addActivity: (activity: Activity) => void
+  restoreActivities: (activities: Activity[]) => void  // Nueva: para cargar sin historial
   removeActivity: (id: string) => void
   updateActivityDuration: (id: string, duration: number) => void
   updateActivityFacets: (id: string, facets: Record<string, number | boolean>, notes?: string) => void
   updateActivityEnergy: (id: string, energyImpact: 'drain' | 'neutral' | 'boost') => void
   setReflection: (reflection: Partial<DailyEntry['reflection']>) => void
   addTask: (text: string, isPriority?: boolean, isPersonal?: boolean) => void
+  restoreTasks: (tasks: Task[]) => void  // Nueva: para cargar sin duplicar
   toggleTask: (id: string) => void
   removeTask: (id: string) => void
   setDiaryNote: (note: string) => void
@@ -34,6 +36,7 @@ interface DayloStore {
   logTime: (activity: Activity) => void
   getActivityHistory: (days?: number) => ActivityLog[]
   getTimeHistory: (days?: number) => TimeLog[]
+  resetStore: () => void
 }
 
 export const useDayloStore = create<DayloStore>((set, get) => ({
@@ -74,6 +77,25 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         currentEntry: {
           ...state.currentEntry,
           activities: newActivities,
+        },
+      }
+    })
+    
+    // Auto-guardar después de agregar actividad
+    console.log('💾 Actividad agregada, guardando...')
+    setTimeout(() => get().autoSave(), 100)
+  },
+
+  // Nueva función: Restaurar actividades sin crear historial (para cargar desde localStorage)
+  restoreActivities: (activities) => {
+    set((state) => {
+      const totalMinutes = activities.reduce((sum, a) => sum + a.duration, 0)
+      return {
+        selectedActivities: activities,
+        totalMinutes,
+        currentEntry: {
+          ...state.currentEntry,
+          activities: activities,
         },
       }
     })
@@ -183,6 +205,20 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         },
       }
     })
+    
+    // Auto-guardar después de agregar tarea
+    console.log('📝 Tarea agregada, guardando...')
+    setTimeout(() => get().autoSave(), 100)
+  },
+
+  // Nueva función: Restaurar tareas sin duplicar (para cargar desde localStorage)
+  restoreTasks: (tasks) => {
+    set((state) => ({
+      currentEntry: {
+        ...state.currentEntry,
+        tasks: tasks,
+      },
+    }))
   },
 
   toggleTask: (id) => {
@@ -197,6 +233,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         },
       }
     })
+    
+    // Auto-guardar después de cambiar estado de tarea
+    setTimeout(() => get().autoSave(), 100)
   },
 
   removeTask: (id) => {
@@ -252,6 +291,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         diaryNote: note,
       },
     }))
+    
+    // Auto-guardar después de escribir nota
+    setTimeout(() => get().autoSave(), 500) // Delay más largo para no guardar en cada tecla
   },
 
   saveEntry: () => {
@@ -345,11 +387,97 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     
     localStorage.setItem('daylo-entries', JSON.stringify(entries))
     
-    // 2. Guardar en Firebase (sincronización en background)
+    // 2. Guardar en Firebase (sincronización en background - NUEVA ARQUITECTURA)
     try {
-      const { saveDailyEntry } = await import('../services/firebaseService')
-      await saveDailyEntry(entryData)
-      console.log('✅ Auto-guardado en Firebase exitoso')
+      const userEmail = localStorage.getItem('daylo-user-email')
+      
+      if (!userEmail) {
+        console.warn('⚠️ No hay email de usuario - saltando guardado en Firebase')
+        console.log('💾 Datos guardados solo en localStorage')
+        return
+      }
+
+      console.log('📤 Guardando en Firebase con arquitectura especializada...')
+      const {
+        saveUserObjectives,
+        saveDailyEmotion,
+        saveDailyIntention,
+        saveDailyActivities,
+        saveTasks,
+        saveDiaryNote,
+      } = await import('../services/firebaseService')
+
+      // Guardar en colecciones especializadas
+      const savePromises: Promise<void>[] = []
+
+      // 1. Objetivos del usuario (solo para usuarios nuevos en su primer check-in)
+      if (state.currentEntry.emotionalCheckIn?.currentGoal && 
+          state.currentEntry.emotionalCheckIn?.futureVision && 
+          state.currentEntry.emotionalCheckIn?.mainObstacle) {
+        savePromises.push(
+          saveUserObjectives({
+            currentGoal: state.currentEntry.emotionalCheckIn.currentGoal,
+            futureVision: state.currentEntry.emotionalCheckIn.futureVision,
+            mainObstacle: state.currentEntry.emotionalCheckIn.mainObstacle,
+          }).catch(err => console.error('❌ Error guardando objetivos:', err))
+        )
+      }
+
+      // 2. Emoción diaria (si existe)
+      if (state.currentEntry.emotionalCheckIn?.feeling) {
+        const isNewUser = !!(state.currentEntry.emotionalCheckIn.currentGoal)
+        savePromises.push(
+          saveDailyEmotion({
+            feeling: state.currentEntry.emotionalCheckIn.feeling,
+            shareThoughts: state.currentEntry.emotionalCheckIn.shareThoughts,
+            actionIntention: state.currentEntry.emotionalCheckIn.actionIntention,
+            isNewUser,
+          }).catch(err => console.error('❌ Error guardando emoción:', err))
+        )
+      }
+
+      // 3. Intención diaria (si existe)
+      if (state.currentEntry.emotionalCheckIn?.actionIntention) {
+        const isNegative = ['Ansioso/a', 'Cansado/a', 'Abrumado/a'].includes(
+          state.currentEntry.emotionalCheckIn.feeling || ''
+        )
+        savePromises.push(
+          saveDailyIntention({
+            intention: state.currentEntry.emotionalCheckIn.actionIntention,
+            feelingContext: state.currentEntry.emotionalCheckIn.feeling || '',
+            isNegativeEmotion: isNegative,
+            shareThoughts: state.currentEntry.emotionalCheckIn.shareThoughts,
+          }).catch(err => console.error('❌ Error guardando intención:', err))
+        )
+      }
+
+      // 4. Actividades diarias (si existen)
+      if (state.selectedActivities.length > 0) {
+        savePromises.push(
+          saveDailyActivities(state.selectedActivities)
+            .catch(err => console.error('❌ Error guardando actividades:', err))
+        )
+      }
+
+      // 5. Tareas (si existen)
+      if (state.currentEntry.tasks && state.currentEntry.tasks.length > 0) {
+        savePromises.push(
+          saveTasks(state.currentEntry.tasks)
+            .catch(err => console.error('❌ Error guardando tareas:', err))
+        )
+      }
+
+      // 6. Nota de diario (si existe)
+      if (state.currentEntry.diaryNote && state.currentEntry.diaryNote.trim()) {
+        savePromises.push(
+          saveDiaryNote(state.currentEntry.diaryNote)
+            .catch(err => console.error('❌ Error guardando nota:', err))
+        )
+      }
+
+      // Ejecutar todas las operaciones en paralelo
+      await Promise.all(savePromises)
+      console.log('✅ Auto-guardado completo en Firebase (arquitectura especializada)')
     } catch (error) {
       console.error('⚠️ Error auto-guardando en Firebase (datos seguros en local):', error)
     }
@@ -432,5 +560,33 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       const logDate = new Date(log.date)
       return logDate >= cutoffDate
     })
+  },
+
+  resetStore: () => {
+    // Resetear a estado inicial completo
+    set({
+      currentEntry: {
+        date: new Date(),
+        activities: [],
+        tasks: [],
+        diaryNote: '',
+        emotionalCheckIn: undefined,
+        dayIntention: undefined,
+        dayStory: undefined,
+        reflection: {
+          highlights: '',
+          mood: '😊',
+          dayRating: 3,
+        },
+      },
+      selectedActivities: [],
+      totalMinutes: 0,
+      isModalOpen: false,
+      hasCompletedCheckIn: false,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+      activityHistory: [],
+      timeHistory: [],
+    })
+    console.log('🔄 Store reseteado por logout')
   },
 }))

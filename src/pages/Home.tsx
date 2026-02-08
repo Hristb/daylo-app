@@ -30,11 +30,12 @@ export default function Home() {
     selectedActivities, 
     totalMinutes, 
     currentEntry,
-    hasCompletedCheckIn,
-    addActivity, 
+    addActivity,
+    restoreActivities, // Nueva función para cargar sin historial 
     removeActivity,
     updateActivityDuration,
     updateActivityFacets,
+    restoreTasks,      // Nueva función para cargar sin duplicar
     setModalOpen,
     completeCheckIn,
     checkAndResetIfNewDay,
@@ -81,22 +82,14 @@ export default function Home() {
       if (todayLocal) {
         console.log('📦 Cargando desde localStorage:', todayLocal)
         
-        // Cargar actividades
+        // Cargar actividades SIN crear historial (evitar duplicación)
         if (todayLocal.activities && todayLocal.activities.length > 0) {
-          todayLocal.activities.forEach((activity: any) => {
-            addActivity(activity)
-          })
+          restoreActivities(todayLocal.activities)
         }
         
-        // Cargar tareas/prioridades
+        // Cargar tareas/prioridades SIN duplicar
         if (todayLocal.tasks && todayLocal.tasks.length > 0) {
-          const { currentEntry } = useDayloStore.getState()
-          useDayloStore.setState({
-            currentEntry: {
-              ...currentEntry,
-              tasks: todayLocal.tasks
-            }
-          })
+          restoreTasks(todayLocal.tasks)
           console.log('✅ Tareas cargadas:', todayLocal.tasks.length)
         }
         
@@ -133,11 +126,16 @@ export default function Home() {
     }
     loadTodayData()
 
-    // Mostrar EmotionalCheckIn automáticamente en la mañana
+    // Mostrar EmotionalCheckIn automáticamente:
+    // - UNA VEZ AL DÍA para todos los usuarios
+    // - No importa la hora, solo si ya se completó hoy
     const today = new Date().toISOString().split('T')[0]
     const lastCheckIn = localStorage.getItem('daylo-last-checkin')
     
-    if (timeContext === 'morning' && !hasCompletedCheckIn && lastCheckIn !== today) {
+    // Mostrar solo si NO ha completado el check-in HOY
+    const shouldShowCheckIn = lastCheckIn !== today
+    
+    if (shouldShowCheckIn) {
       setTimeout(() => {
         setShowEmotionalCheckIn(true)
         setModalOpen(true) // Ocultar navegación
@@ -322,14 +320,21 @@ export default function Home() {
         </p>
       </motion.div>
 
+
+
       {/* Emotional Check-In Modal */}
       <AnimatePresence>
         {showEmotionalCheckIn && (
           <EmotionalCheckIn
+            isNewUser={!localStorage.getItem('daylo-onboarding-complete')}
             onComplete={() => {
               setShowEmotionalCheckIn(false)
               setModalOpen(false) // Mostrar navegación de nuevo
               completeCheckIn()
+              // Marcar que ya completó el onboarding inicial
+              if (!localStorage.getItem('daylo-onboarding-complete')) {
+                localStorage.setItem('daylo-onboarding-complete', 'true')
+              }
               autoSave() // Guardar después del check-in
             }}
           />
@@ -641,127 +646,50 @@ export default function Home() {
                       </span>
                     </div>
                     
-                    {/* Barra de progreso del día (24h) - MEJORADA */}
-                    <div className="space-y-3">
-                      {/* Header con estadísticas */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <motion.div
-                            className="w-8 h-8 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center"
-                            animate={{ rotate: [0, 360] }}
-                            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-                          >
-                            <span className="text-sm">⏰</span>
-                          </motion.div>
-                          <div>
-                            <p className="text-xs font-medium text-gray-600">Tiempo registrado</p>
-                            <p className="text-sm font-bold text-gray-800">
-                              {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}min de tu día
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Disponible</p>
-                          <p className={`text-sm font-semibold ${
-                            totalMinutes > 1440 ? 'text-red-600' : 'text-green-600'
-                          }`}>
-                            {totalMinutes > 1440 
-                              ? `-${Math.floor((totalMinutes - 1440) / 60)}h ${(totalMinutes - 1440) % 60}m`
-                              : `${Math.floor((1440 - totalMinutes) / 60)}h ${(1440 - totalMinutes) % 60}m`
-                            }
-                          </p>
-                        </div>
+                    {/* Barra de progreso del día (24h) - SIMPLIFICADA */}
+                    <div className="space-y-2">
+                      {/* Header simplificado */}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 font-medium">
+                          🕒 Registrado
+                        </span>
+                        <span className={`font-semibold ${
+                          totalMinutes > 1440 ? 'text-red-600' : 'text-purple-600'
+                        }`}>
+                          {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m / 24h
+                        </span>
                       </div>
 
-                      {/* Barra de progreso mejorada con etiquetas */}
+                      {/* Barra de progreso limpia */}
                       <div className="relative">
-                        {/* Etiquetas de tiempo del día */}
-                        <div className="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
-                          <span>🌅 6am</span>
-                          <span>☀️ 12pm</span>
-                          <span>🌆 6pm</span>
-                          <span>🌙 12am</span>
-                        </div>
-                        
-                        {/* Barra con gradiente y animación */}
-                        <div className="relative w-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded-full h-4 overflow-hidden shadow-inner">
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
                           <motion.div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.min((totalMinutes / 1440) * 100, 100)}%`,
+                              background: totalMinutes > 1440 
+                                ? 'linear-gradient(90deg, #ef4444, #dc2626)'
+                                : 'linear-gradient(90deg, #a855f7, #ec4899)'
+                            }}
                             initial={{ width: 0 }}
                             animate={{ 
-                              width: `${Math.min((totalMinutes / 1440) * 100, 100)}%`,
+                              width: `${Math.min((totalMinutes / 1440) * 100, 100)}%`
                             }}
-                            className={`h-full rounded-full relative ${
-                              totalMinutes > 1440 
-                                ? 'bg-gradient-to-r from-red-400 via-orange-500 to-red-600' 
-                                : totalMinutes > 1200 
-                                ? 'bg-gradient-to-r from-orange-300 via-yellow-400 to-orange-500' 
-                                : totalMinutes > 960 
-                                ? 'bg-gradient-to-r from-yellow-300 via-green-400 to-green-500'
-                                : 'bg-gradient-to-r from-green-300 via-teal-400 to-blue-400'
-                            }`}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
-                          >
-                            {/* Brillo animado */}
-                            <motion.div
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30"
-                              animate={{ x: ['-100%', '200%'] }}
-                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            />
-                          </motion.div>
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                          />
                         </div>
                         
-                        {/* Marcadores de límites */}
-                        <div className="relative w-full h-1 mt-1">
-                          <div className="absolute left-[66.66%] top-0 w-px h-full bg-yellow-300 opacity-50" />
-                          <div className="absolute left-[83.33%] top-0 w-px h-full bg-orange-300 opacity-50" />
-                          <div className="absolute left-[100%] top-0 w-px h-full bg-red-400" />
-                        </div>
-                      </div>
-
-                      {/* Mensaje contextual mejorado */}
-                      <AnimatePresence>
-                        {totalMinutes > 1200 && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10, height: 0 }}
-                            animate={{ opacity: 1, y: 0, height: 'auto' }}
-                            exit={{ opacity: 0, y: -10, height: 0 }}
-                            className={`rounded-xl p-3 border-2 ${
-                              totalMinutes > 1440 
-                                ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 
-                                : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-orange-200'
-                            }`}
+                        {/* Mensaje de advertencia solo si excede */}
+                        {totalMinutes > 1440 && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-xs text-red-600 mt-1.5 font-medium"
                           >
-                            <div className="flex items-start gap-2">
-                              <motion.span
-                                className="text-xl"
-                                animate={{ 
-                                  scale: totalMinutes > 1440 ? [1, 1.2, 1] : 1,
-                                  rotate: totalMinutes > 1440 ? [0, -10, 10, 0] : 0,
-                                }}
-                                transition={{ duration: 0.5, repeat: totalMinutes > 1440 ? Infinity : 0, repeatDelay: 1 }}
-                              >
-                                {totalMinutes > 1440 ? '⚠️' : '⚡'}
-                              </motion.span>
-                              <div className="flex-1">
-                                <p className={`text-xs font-semibold ${
-                                  totalMinutes > 1440 ? 'text-red-700' : 'text-orange-700'
-                                }`}>
-                                  {totalMinutes > 1440 
-                                    ? '¡Superaste las 24 horas!' 
-                                    : 'Te estás acercando al límite del día'}
-                                </p>
-                                <p className={`text-[11px] mt-0.5 ${
-                                  totalMinutes > 1440 ? 'text-red-600' : 'text-orange-600'
-                                }`}>
-                                  {totalMinutes > 1440 
-                                    ? 'Revisa las duraciones de tus actividades antes de agregar más' 
-                                    : `Quedan ${Math.floor((1440 - totalMinutes) / 60)}h ${(1440 - totalMinutes) % 60}m disponibles`}
-                                  </p>
-                              </div>
-                            </div>
-                          </motion.div>
+                            ⚠️ Has excedido las 24 horas del día
+                          </motion.p>
                         )}
-                      </AnimatePresence>
+                      </div>
                     </div>
                   </motion.div>
                 )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Avatar from '../components/Avatar'
 import HistoryLog from '../components/HistoryLog'
 import { getAllUserEntries } from '../services/firebaseService'
+import { useDayloStore } from '../store/dayloStore'
 
 interface UserStats {
   totalDays: number
@@ -17,6 +18,7 @@ interface UserStats {
 }
 
 export default function Profile() {
+  const { resetStore } = useDayloStore()
   const userName = localStorage.getItem('daylo-user-name') || 'Usuario'
   const userEmail = localStorage.getItem('daylo-user-email') || ''
   const [stats, setStats] = useState<UserStats>({
@@ -144,16 +146,26 @@ export default function Profile() {
 
   const handleLogout = () => {
     if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
+      // Guardar flag de sesión cerrada
+      sessionStorage.setItem('daylo-just-logged-out', 'true')
+      
+      // Resetear el store de Zustand PRIMERO
+      resetStore()
+      
       // Limpiar TODAS las claves relacionadas
       localStorage.removeItem('daylo-user-name')
       localStorage.removeItem('daylo-user-email')
       localStorage.removeItem('daylo-entries')
       localStorage.removeItem('daylo-last-checkin')
+      localStorage.removeItem('daylo-activity-history')
+      localStorage.removeItem('daylo-time-history')
+      localStorage.removeItem('daylo-onboarding-complete')  // CRÍTICO: permitir nuevo onboarding
       localStorage.removeItem('userName')  // Legacy
       localStorage.removeItem('userEmail') // Legacy
       
-      // Redirigir a /hoy - el Layout detectará que no hay usuario y mostrará el modal de bienvenida
-      window.location.href = '/hoy'
+      // Recargar la aplicación desde la raíz
+      window.location.href = window.location.pathname
+      window.location.reload()
     }
   }
 

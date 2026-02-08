@@ -100,18 +100,19 @@ export default function TimeSlider({
       <div className="relative">
         {/* Fondo con marcadores de tiempo */}
         <div className="relative h-8 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded-full overflow-visible shadow-inner">
-          {/* Marcadores de tiempo (cada hora) */}
-          {Array.from({ length: Math.floor(max / 60) + 1 }).map((_, i) => {
-            const pos = (i * 60 / max) * 100
+          {/* Marcadores de tiempo (cada 3 horas para no saturar) */}
+          {Array.from({ length: Math.floor(max / 180) + 1 }).map((_, i) => {
+            const hours = i * 3
+            const pos = (hours * 60 / max) * 100
             if (pos > 100) return null
             return (
               <div
                 key={i}
-                className="absolute top-0 bottom-0 w-px bg-gray-300"
+                className="absolute top-0 bottom-0 w-px bg-gray-300 opacity-60"
                 style={{ left: `${pos}%` }}
               >
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-gray-400 font-medium">
-                  {i}h
+                  {hours}h
                 </div>
               </div>
             )
@@ -154,52 +155,20 @@ export default function TimeSlider({
             style={{ margin: 0 }}
           />
 
-          {/* Thumb mejorado con animación pulsante */}
-          <motion.div
+          {/* Thumb simplificado - SIN animaciones confusas */}
+          <div
             className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-20"
             style={{ 
               left: `${percentage}%`,
               transform: 'translate(-50%, -50%)',
             }}
-            animate={{
-              scale: isDragging ? 1.4 : (showHint && !hasInteracted ? [1, 1.1, 1] : 1),
-            }}
-            transition={{ 
-              scale: showHint && !hasInteracted 
-                ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
-                : { duration: 0.2 }
-            }}
           >
-            {/* Sombra del thumb */}
-            <motion.div
-              className="absolute inset-0 rounded-full"
-              style={{ backgroundColor: color }}
-              animate={{
-                scale: isDragging ? [1, 1.8, 1] : 1,
-                opacity: isDragging ? [0.3, 0, 0.3] : 0.3,
-              }}
-              transition={{ duration: 0.6, repeat: isDragging ? Infinity : 0 }}
-            />
-            
-            {/* Thumb principal */}
+            {/* Thumb principal - solo el círculo limpio */}
             <div 
-              className="relative w-7 h-7 rounded-full shadow-xl border-4 border-white flex items-center justify-center"
+              className="relative w-6 h-6 rounded-full shadow-lg border-2 border-white"
               style={{ backgroundColor: color }}
-            >
-              {/* Icono de mano cuando no ha interactuado */}
-              <AnimatePresence>
-                {showHint && !hasInteracted && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0 }}
-                  >
-                    <Hand className="w-3 h-3 text-white" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
+            />
+          </div>
         </div>
       </div>
 

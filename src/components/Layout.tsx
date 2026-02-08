@@ -8,6 +8,7 @@ import Avatar from './Avatar'
 
 export default function Layout() {
   const [showWelcome, setShowWelcome] = useState(false)
+  const [justLoggedOut, setJustLoggedOut] = useState(false)
   const [userName, setUserName] = useState('')
   const [inputName, setInputName] = useState('')
   const [inputEmail, setInputEmail] = useState('')
@@ -16,29 +17,44 @@ export default function Layout() {
 
   const handleQuickLogout = () => {
     if (window.confirm('¿Cerrar sesión?')) {
+      // Guardar flag de sesión cerrada
+      sessionStorage.setItem('daylo-just-logged-out', 'true')
+      
+      // Importar resetStore dinámicamente para evitar dependencias circulares
+      import('../store/dayloStore').then(({ useDayloStore }) => {
+        useDayloStore.getState().resetStore()
+      })
+      
       // Limpiar TODAS las claves (incluyendo legacy)
       localStorage.removeItem('daylo-user-name')
       localStorage.removeItem('daylo-user-email')
       localStorage.removeItem('daylo-entries')
       localStorage.removeItem('daylo-last-checkin')
+      localStorage.removeItem('daylo-activity-history')
+      localStorage.removeItem('daylo-time-history')
+      localStorage.removeItem('daylo-onboarding-complete')  // CRÍTICO: permitir nuevo onboarding
       localStorage.removeItem('userName')  // Legacy
       localStorage.removeItem('userEmail') // Legacy
       
-      // Limpiar también el store de Zustand si existe
-      localStorage.removeItem('daylo-store')
-      
-      // Redirigir a /hoy - el Layout detectará que no hay usuario y mostrará el modal de bienvenida
-      window.location.href = '/hoy'
+      // Recargar la aplicación desde la raíz
+      window.location.href = window.location.pathname
+      window.location.reload()
     }
   }
 
   useEffect(() => {
     const storedName = localStorage.getItem('daylo-user-name')
     const storedEmail = localStorage.getItem('daylo-user-email')
+    const loggedOut = sessionStorage.getItem('daylo-just-logged-out')
+    
     if (storedName && storedEmail) {
       setUserName(storedName)
     } else {
       setShowWelcome(true)
+      if (loggedOut === 'true') {
+        setJustLoggedOut(true)
+        sessionStorage.removeItem('daylo-just-logged-out')
+      }
     }
   }, [])
 
@@ -69,6 +85,8 @@ export default function Layout() {
         setUserName(existingUser.name)
         setShowWelcome(false)
         
+        console.log('✅ Usuario existente cargado:', existingUser.email)
+        
         // Mostrar mensaje de bienvenida de regreso
         setTimeout(() => {
           alert(`¡Bienvenido de vuelta, ${existingUser.name}! 🎉\nHemos cargado tus datos.`)
@@ -81,6 +99,8 @@ export default function Layout() {
         localStorage.setItem('daylo-user-email', inputEmail.trim())
         setUserName(inputName.trim())
         setShowWelcome(false)
+        
+        console.log('✅ Nuevo usuario registrado:', inputEmail.trim())
       }
     } catch (error) {
       console.error('Error al verificar usuario:', error)
@@ -208,10 +228,13 @@ export default function Layout() {
 
                 <div className="mt-8 text-center space-y-4">
                   <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                    ¡Bienvenido a Daylo!
+                    {justLoggedOut ? '¡Hasta pronto! 👋' : '¡Bienvenido a Daylo!'}
                   </h2>
                   <p className="text-gray-600">
-                    Tu diario personal en la nube
+                    {justLoggedOut 
+                      ? 'Gracias por usar Daylo. ¿Quieres ingresar con otro usuario?' 
+                      : 'Tu diario personal en la nube'
+                    }
                   </p>
                 </div>
 
@@ -283,10 +306,22 @@ export default function Layout() {
                         Verificando...
                       </span>
                     ) : (
-                      '✨ Comenzar'
+                      justLoggedOut ? '🔐 Ingresar con otro usuario' : '✨ Comenzar'
                     )}
                   </motion.button>
                 </div>
+
+                {justLoggedOut && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 bg-purple-50 rounded-xl text-center"
+                  >
+                    <p className="text-sm text-purple-700">
+                      💜 Tu sesión se cerró correctamente
+                    </p>
+                  </motion.div>
+                )}
 
                 <p className="mt-6 text-xs text-center text-gray-500">
                   Tus datos se guardan de forma segura en Firebase

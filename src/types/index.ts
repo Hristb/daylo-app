@@ -39,6 +39,11 @@ export interface DailyEntry {
     feeling: string
     needsToday?: string
     mentalNoise?: string
+    currentGoal?: string // ¿Qué quieres cambiar o lograr ahora mismo en tu vida?
+    futureVision?: string // ¿Cómo quiero que sea mi vida en los próximos años?
+    mainObstacle?: string // ¿Qué es lo que más me frena hoy?
+    shareThoughts?: string // ¿Hay algo que quieras compartir? (usuarios existentes - emociones negativas)
+    actionIntention?: string // Intención/acción específica del día (usuarios existentes)
   }
   dayIntention?: string
   dayStory?: {
