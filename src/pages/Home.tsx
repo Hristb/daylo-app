@@ -8,6 +8,7 @@ import ActivityModal from '../components/modals/ActivityModal'
 import RatingCard from '../components/cards/RatingCard'
 import BooleanCard from '../components/cards/BooleanCard'
 import ChecklistSection from '../components/ChecklistSection'
+import DiarySection from '../components/DiarySection'
 import EmotionalCheckIn from '../components/EmotionalCheckIn'
 import DayClosing from '../components/DayClosing'
 import { Sparkles, Cloud, CloudOff, AlertCircle, Target, Clock } from 'lucide-react'
@@ -64,7 +65,13 @@ export default function Home() {
         return // Si se reseteó, no cargar nada más
       }
       
-      // 2. PRIMERO: Cargar desde localStorage (instantáneo, siempre actualizado)
+      // 2. SOLO cargar si el store está vacío (primera carga del día)
+      if (selectedActivities.length > 0) {
+        console.log('⏭️ Store ya tiene datos, no recargar')
+        return // Ya hay datos cargados, no duplicar
+      }
+      
+      // 3. PRIMERO: Cargar desde localStorage (instantáneo, siempre actualizado)
       const today = new Date().toISOString().split('T')[0]
       const localEntries = JSON.parse(localStorage.getItem('daylo-entries') || '[]')
       const todayLocal = localEntries.find((e: any) => 
@@ -584,7 +591,7 @@ export default function Home() {
               className="p-6"
             >
               {/* Checklist Section - Tareas del día */}
-              <ChecklistSection timeContext={timeContext} />
+              <ChecklistSection />
             </motion.div>
           ) : (
             <motion.div
@@ -597,11 +604,6 @@ export default function Home() {
             >
               {/* Activity Grid */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <Sparkles size={20} className="text-pastel-purple" />
-                  ¿Qué hiciste hoy?
-                </h3>
-                
                 <div className="grid grid-cols-3 gap-3">
                   {ACTIVITY_OPTIONS.map((activity, index) => (
                     <motion.div
@@ -901,6 +903,9 @@ export default function Home() {
       </ActivityModal>
 
       {/* Time Sliders - REMOVED (now inside modal) */}
+
+      {/* Diary Section - Notas personales */}
+      <DiarySection timeContext={timeContext} />
     </div>
   )
 }

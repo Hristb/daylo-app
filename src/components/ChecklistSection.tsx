@@ -3,11 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useDayloStore } from '../store/dayloStore'
 
-interface ChecklistSectionProps {
-  timeContext: 'morning' | 'afternoon' | 'evening'
-}
-
-export default function ChecklistSection({ timeContext }: ChecklistSectionProps) {
+export default function ChecklistSection() {
   const [newTaskText, setNewTaskText] = useState('')
   const [newPersonalAction, setNewPersonalAction] = useState('')
   const [isTaskSaving, setIsTaskSaving] = useState(false)
@@ -17,7 +13,6 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
   
   const priorities = tasks.filter(t => t.isPriority && !t.isPersonal)
   const personalAction = tasks.find(t => t.isPersonal)
-  const otherTasks = tasks.filter(t => !t.isPriority && !t.isPersonal)
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,40 +83,7 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
   }
 
   const completedCount = tasks.filter(t => t.completed).length
-  const progress = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0
 
-  const getContextMessage = () => {
-    if (timeContext === 'morning') {
-      return {
-        title: '✨ ¿Qué quieres lograr hoy?',
-        subtitle: 'Planifica tus intenciones para el día',
-        placeholder: 'Ej: Terminar reporte, hacer ejercicio...',
-      }
-    } else if (timeContext === 'afternoon') {
-      // Si no hay tareas, pregunta diferente
-      if (tasks.length === 0) {
-        return {
-          title: '📋 ¿Qué hiciste hoy?',
-          subtitle: 'Registra las cosas que realizaste',
-          placeholder: 'Ej: Reunión con equipo, almorzar con amigos...',
-        }
-      } else {
-        return {
-          title: '🎯 ¿Qué lograste hoy?',
-          subtitle: 'Marca lo que ya completaste',
-          placeholder: 'Ej: Completé el proyecto...',
-        }
-      }
-    } else {
-      return {
-        title: '📝 Resumen de tu día',
-        subtitle: 'Revisa lo que lograste',
-        placeholder: 'Ej: Día productivo...',
-      }
-    }
-  }
-
-  const context = getContextMessage()
   const canAddPriority = priorities.length < 3
 
   const renderTask = (task: any) => (
@@ -306,75 +268,6 @@ export default function ChecklistSection({ timeContext }: ChecklistSectionProps)
             </form>
           )}
         </div>
-
-      {/* OTRAS TAREAS O RESUMEN */}
-      {(timeContext !== 'morning' || otherTasks.length > 0) && (
-        <div className="space-y-3 border-t-2 border-gray-100 pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">{context.title}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">{context.subtitle}</p>
-            </div>
-            {tasks.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {completedCount}/{tasks.length}
-              </span>
-            )}
-          </div>
-
-          {/* Progress Bar */}
-          {tasks.length > 0 && (
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="h-full bg-gradient-to-r from-purple-400 to-pink-400"
-              />
-            </div>
-          )}
-
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            <AnimatePresence mode="popLayout">
-              {timeContext === 'morning' 
-                ? otherTasks.map(renderTask)
-                : tasks.map(renderTask)
-              }
-            </AnimatePresence>
-
-            {tasks.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                <p className="text-sm">Aún no hay tareas</p>
-                <p className="text-xs mt-1">
-                  {timeContext === 'morning' 
-                    ? '¡Comienza a planificar tu día!' 
-                    : '¿Qué hiciste hoy?'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {timeContext !== 'morning' && (
-            <form onSubmit={handleAddTask} className="flex gap-2">
-              <input
-                type="text"
-                value={newTaskText}
-                onChange={(e) => setNewTaskText(e.target.value)}
-                placeholder={context.placeholder}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-sm"
-                maxLength={100}
-              />
-              <button
-                type="submit"
-                disabled={!newTaskText.trim()}
-                className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </form>
-          )}
-        </div>
-      )}
 
       {/* Completion Message */}
       {tasks.length > 0 && completedCount === tasks.length && (
