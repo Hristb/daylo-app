@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Mail, Calendar, Award, TrendingUp, Heart, LogOut, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import Avatar from '../components/Avatar'
+import HistoryLog from '../components/HistoryLog'
 import { getAllUserEntries } from '../services/firebaseService'
 
 interface UserStats {
@@ -331,6 +332,9 @@ export default function Profile() {
             )}
           </>
         )}
+
+        {/* Historial de Actividades */}
+        <HistoryLog />
 
         {/* Botón de cerrar sesión */}
         <motion.button

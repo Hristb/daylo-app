@@ -8,9 +8,10 @@ import {
   query, 
   where,
   orderBy,
-  Timestamp 
+  Timestamp,
+  addDoc
 } from 'firebase/firestore';
-import { DailyEntry } from '../types';
+import { DailyEntry, ActivityLog, TimeLog } from '../types';
 
 // Obtener el email del usuario (identificador único)
 const getUserEmail = (): string => {
@@ -147,6 +148,104 @@ export const getRecentEntries = async (days: number = 7): Promise<DailyEntry[]> 
     return entries;
   } catch (error) {
     console.error('❌ Error obteniendo entradas recientes:', error);
+    return [];
+  }
+};
+
+// Guardar log de actividad en Firebase
+export const saveActivityLog = async (log: ActivityLog): Promise<void> => {
+  try {
+    const userEmail = getUserEmail();
+    const logData = {
+      ...log,
+      userEmail,
+      timestamp: Timestamp.now(),
+    };
+
+    await addDoc(collection(db, 'activityHistory'), logData);
+    console.log('✅ Activity log guardado en Firebase');
+  } catch (error) {
+    console.error('❌ Error guardando activity log:', error);
+    throw error;
+  }
+};
+
+// Guardar log de tiempo en Firebase
+export const saveTimeLog = async (log: TimeLog): Promise<void> => {
+  try {
+    const userEmail = getUserEmail();
+    const logData = {
+      ...log,
+      userEmail,
+      timestamp: Timestamp.now(),
+    };
+
+    await addDoc(collection(db, 'timeHistory'), logData);
+    console.log('✅ Time log guardado en Firebase');
+  } catch (error) {
+    console.error('❌ Error guardando time log:', error);
+    throw error;
+  }
+};
+
+// Obtener historial de actividades
+export const getActivityHistory = async (days: number = 30): Promise<ActivityLog[]> => {
+  try {
+    const userEmail = getUserEmail();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    const historyRef = collection(db, 'activityHistory');
+    const q = query(
+      historyRef,
+      where('userEmail', '==', userEmail),
+      where('date', '>=', cutoffDate.toISOString().split('T')[0]),
+      orderBy('date', 'desc'),
+      orderBy('timestamp', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const logs: ActivityLog[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      logs.push({ ...doc.data(), id: doc.id } as ActivityLog);
+    });
+    
+    console.log(`✅ ${logs.length} activity logs cargados desde Firebase`);
+    return logs;
+  } catch (error) {
+    console.error('❌ Error obteniendo historial de actividades:', error);
+    return [];
+  }
+};
+
+// Obtener historial de tiempo
+export const getTimeHistory = async (days: number = 30): Promise<TimeLog[]> => {
+  try {
+    const userEmail = getUserEmail();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    const historyRef = collection(db, 'timeHistory');
+    const q = query(
+      historyRef,
+      where('userEmail', '==', userEmail),
+      where('date', '>=', cutoffDate.toISOString().split('T')[0]),
+      orderBy('date', 'desc'),
+      orderBy('timestamp', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const logs: TimeLog[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      logs.push({ ...doc.data(), id: doc.id } as TimeLog);
+    });
+    
+    console.log(`✅ ${logs.length} time logs cargados desde Firebase`);
+    return logs;
+  } catch (error) {
+    console.error('❌ Error obteniendo historial de tiempo:', error);
     return [];
   }
 };

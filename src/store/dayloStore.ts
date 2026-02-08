@@ -375,6 +375,14 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     set((state) => {
       const newHistory = [...state.activityHistory, log]
       localStorage.setItem('daylo-activity-history', JSON.stringify(newHistory))
+      
+      // Guardar en Firebase en background
+      import('../services/firebaseService').then(({ saveActivityLog }) => {
+        saveActivityLog(log).catch(err => 
+          console.error('Error guardando activity log en Firebase:', err)
+        )
+      })
+      
       return { activityHistory: newHistory }
     })
   },
@@ -392,6 +400,14 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     set((state) => {
       const newHistory = [...state.timeHistory, log]
       localStorage.setItem('daylo-time-history', JSON.stringify(newHistory))
+      
+      // Guardar en Firebase en background
+      import('../services/firebaseService').then(({ saveTimeLog }) => {
+        saveTimeLog(log).catch(err => 
+          console.error('Error guardando time log en Firebase:', err)
+        )
+      })
+      
       return { timeHistory: newHistory }
     })
   },

@@ -1,19 +1,66 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { History, Clock, ChevronDown, Calendar } from 'lucide-react'
-import { useDayloStore } from '../store/dayloStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ActivityIcon from './icons/ActivityIcon'
+import { getActivityHistory, getTimeHistory } from '../services/firebaseService'
+import { ActivityLog, TimeLog } from '../types'
 
 type ViewMode = 'activities' | 'time'
 
 export default function HistoryLog() {
-  const { getActivityHistory, getTimeHistory } = useDayloStore()
   const [isOpen, setIsOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('activities')
   const [daysFilter, setDaysFilter] = useState(7)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+  const [timeLogs, setTimeLogs] = useState<TimeLog[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const activityLogs = getActivityHistory(daysFilter)
-  const timeLogs = getTimeHistory(daysFilter)
+  // Cargar historial cuando se abre o cambia el filtro
+  useEffect(() => {
+    if (isOpen) {
+      loadHistory()
+    }
+  }, [isOpen, daysFilter])
+
+  const loadHistory = async () => {
+    setIsLoading(true)
+    try {
+      // 1. Cargar desde localStorage (rápido)
+      const localActivityHistory = JSON.parse(localStorage.getItem('daylo-activity-history') || '[]')
+      const localTimeHistory = JSON.parse(localStorage.getItem('daylo-time-history') || '[]')
+      
+      // Filtrar por días
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - daysFilter)
+      const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
+      
+      const filteredActivities = localActivityHistory.filter((log: ActivityLog) => log.date >= cutoffDateStr)
+      const filteredTime = localTimeHistory.filter((log: TimeLog) => log.date >= cutoffDateStr)
+      
+      setActivityLogs(filteredActivities)
+      setTimeLogs(filteredTime)
+      
+      // 2. Sincronizar con Firebase en background
+      try {
+        const [firebaseActivities, firebaseTime] = await Promise.all([
+          getActivityHistory(daysFilter),
+          getTimeHistory(daysFilter)
+        ])
+        
+        if (firebaseActivities.length > 0 || firebaseTime.length > 0) {
+          setActivityLogs(firebaseActivities)
+          setTimeLogs(firebaseTime)
+          console.log('✅ Historial cargado desde Firebase')
+        }
+      } catch (error) {
+        console.log('⚠️ Firebase no disponible, usando datos locales')
+      }
+    } catch (error) {
+      console.error('Error cargando historial:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Agrupar por fecha
   const groupByDate = (logs: any[]) => {
@@ -151,7 +198,16 @@ export default function HistoryLog() {
               </div>
 
               {/* Content */}
-              {viewMode === 'activities' ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <motion.div
+                    className="w-12 h-12 mx-auto border-4 border-green-200 border-t-green-500 rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  />
+                  <p className="text-sm text-gray-500 mt-4">Cargando historial...</p>
+                </div>
+              ) : viewMode === 'activities' ? (
                 <div className="space-y-4">
                   {Object.keys(groupedActivities).length === 0 ? (
                     <div className="text-center py-8 text-gray-500">

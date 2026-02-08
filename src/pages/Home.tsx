@@ -11,7 +11,6 @@ import ChecklistSection from '../components/ChecklistSection'
 import DiarySection from '../components/DiarySection'
 import EmotionalCheckIn from '../components/EmotionalCheckIn'
 import DayClosing from '../components/DayClosing'
-import HistoryLog from '../components/HistoryLog'
 import { Sparkles, Cloud, CloudOff, AlertCircle, Target, Clock } from 'lucide-react'
 import { ActivityOption, ActivityFacet } from '../types'
 import { getTodayEntry } from '../services/firebaseService'
@@ -537,7 +536,7 @@ export default function Home() {
           >
             <div className="flex items-center justify-center gap-2">
               <Target size={20} />
-              <span>Propósito</span>
+              <span>Intenciones</span>
             </div>
             {activeTab === 'purpose' && (
               <motion.div
@@ -557,7 +556,7 @@ export default function Home() {
           >
             <div className="flex items-center justify-center gap-2">
               <Clock size={20} />
-              <span>Lo que hice hoy</span>
+              <span>Mi Día</span>
               {selectedActivities.length > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
                   {selectedActivities.length}
@@ -772,9 +771,6 @@ export default function Home() {
       </motion.div>
 
       {/* Checklist Section - Tareas del día */}
-
-      {/* Historial de Actividades */}
-      <HistoryLog />
 
       {/* Activity Detail Modal */}
       <ActivityModal
