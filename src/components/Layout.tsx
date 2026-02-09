@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { User, Mail, LogOut } from 'lucide-react'
 import { getUserByEmail, createOrUpdateUser } from '../services/firebaseService'
 import Avatar from './Avatar'
+import LogoutConfirmModal from './modals/LogoutConfirmModal'
 
 export default function Layout() {
   const [showWelcome, setShowWelcome] = useState(false)
@@ -14,10 +15,10 @@ export default function Layout() {
   const [inputEmail, setInputEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const handleQuickLogout = () => {
-    if (window.confirm('¿Cerrar sesión?')) {
-      // Guardar flag de sesión cerrada
+    // Guardar flag de sesión cerrada
       sessionStorage.setItem('daylo-just-logged-out', 'true')
       
       // Importar resetStore dinámicamente para evitar dependencias circulares
@@ -36,10 +37,9 @@ export default function Layout() {
       localStorage.removeItem('userName')  // Legacy
       localStorage.removeItem('userEmail') // Legacy
       
-      // Recargar la aplicación desde la raíz
-      window.location.href = window.location.pathname
-      window.location.reload()
-    }
+    // Recargar la aplicación desde la raíz
+    window.location.href = window.location.pathname
+    window.location.reload()
   }
 
   useEffect(() => {
@@ -86,11 +86,6 @@ export default function Layout() {
         setShowWelcome(false)
         
         console.log('✅ Usuario existente cargado:', existingUser.email)
-        
-        // Mostrar mensaje de bienvenida de regreso
-        setTimeout(() => {
-          alert(`¡Bienvenido de vuelta, ${existingUser.name}! 🎉\nHemos cargado tus datos.`)
-        }, 500)
       } else {
         // Nuevo usuario - guardar en Firebase
         await createOrUpdateUser(inputName.trim(), inputEmail.trim())
@@ -171,7 +166,7 @@ export default function Layout() {
               {/* Botón de logout rápido */}
               {userName && !showWelcome && (
                 <motion.button
-                  onClick={handleQuickLogout}
+                  onClick={() => setShowLogoutModal(true)}
                   className="p-2 rounded-full hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors group"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
@@ -322,14 +317,21 @@ export default function Layout() {
                     </p>
                   </motion.div>
                 )}
-
-                <p className="mt-6 text-xs text-center text-gray-500">
-                  Tus datos se guardan de forma segura en Firebase
-                </p>
               </div>
             </motion.div>
           </>
         )}
-      </AnimatePresence>    </div>
+      </AnimatePresence>
+
+      {/* Modal de confirmación de logout */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <LogoutConfirmModal
+            onConfirm={handleQuickLogout}
+            onCancel={() => setShowLogoutModal(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

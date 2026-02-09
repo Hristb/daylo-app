@@ -118,7 +118,13 @@ export default function Home() {
       try {
         const todayData = await getTodayEntry()
         if (todayData && todayData.activities) {
-          console.log('☁️ Firebase sincronizado')
+          // Validación adicional: verificar que sea realmente del día actual
+          const dataDate = new Date(todayData.date).toISOString().split('T')[0]
+          if (dataDate === today) {
+            console.log('☁️ Firebase sincronizado con datos del día actual')
+          } else {
+            console.warn('⚠️ Firebase devolvió datos de otro día, ignorando')
+          }
         }
       } catch (error) {
         console.log('⚠️ Firebase no disponible, usando datos locales')

@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ⚠️ REGLAS TEMPORALES - PERMITIR ACCESO CON VALIDACIÓN BÁSICA
+    // TODO: Implementar Firebase Authentication y usar reglas estrictas
+    
+    // Función helper para extraer email del ID
+    function getEmailFromId(docId) {
+      return docId.split('_')[0];
+    }
+    
+    // Colección users - lectura pública, escritura limitada
+    match /users/{email} {
+      allow read: if true;
+      allow write: if request.resource.data.email == email;
+    }
+    
+    // Colección user_objectives - acceso por email en docId
+    match /user_objectives/{email} {
+      allow read, write: if true; // Temporal - agregar validación
+    }
+    
+    // Colección dailyEntries - formato: {email}_{date}
+    match /dailyEntries/{entryId} {
+      allow read, write: if true; // Temporal - en producción validar que entryId contenga el email del usuario
+    }
+    
+    // Colecciones diarias con formato {email}_{date}
+    match /daily_intentions/{docId} {
+      allow read, write: if true;
+    }
+    
+    match /daily_activities/{docId} {
+      allow read, write: if true;
+    }
+    
+    match /daily_emotions/{docId} {
+      allow read, write: if true;
+    }
+    
+    match /tasks/{docId} {
+      allow read, write: if true;
+    }
+    
+    match /diary_notes/{docId} {
+      allow read, write: if true;
+    }
+    
+    match /day_stories/{docId} {
+      allow read, write: if true;
+    }
+    
+    // Historial de actividades
+    match /activityHistory/{docId} {
+      allow read, write: if true;
+      allow create: if request.resource.data.userEmail is string;
+    }
+    
+    match /timeHistory/{docId} {
+      allow read, write: if true;
+      allow create: if request.resource.data.userEmail is string;
+    }
+    
+    // Dashboard data
+    match /dashboard_data/{docId} {
+      allow read, write: if true;
+    }
+    
+    // Catálogo de actividades - solo lectura
+    match /activities_catalog/{activityId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

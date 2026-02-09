@@ -58,7 +58,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
   totalMinutes: 0,
   isModalOpen: false,
   hasCompletedCheckIn: false,
-  lastActiveDate: new Date().toISOString().split('T')[0],
+  lastActiveDate: localStorage.getItem('daylo-last-active-date') || new Date().toISOString().split('T')[0],
   activityHistory: JSON.parse(localStorage.getItem('daylo-activity-history') || '[]'),
   timeHistory: JSON.parse(localStorage.getItem('daylo-time-history') || '[]'),
 
@@ -336,6 +336,8 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       hasCompletedCheckIn: false,
       lastActiveDate: today,
     })
+    // Guardar fecha en localStorage para detectar nuevo día
+    localStorage.setItem('daylo-last-active-date', today)
     // Limpiar check-in del día anterior
     localStorage.removeItem('daylo-last-checkin')
   },
@@ -360,6 +362,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
     
     // Actualizar fecha de última actividad
     set({ lastActiveDate: today })
+    localStorage.setItem('daylo-last-active-date', today)
     
     const entryData = {
       id: state.currentEntry.id || Date.now().toString(),
@@ -405,6 +408,7 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         saveDailyActivities,
         saveTasks,
         saveDiaryNote,
+        saveDayStory,
       } = await import('../services/firebaseService')
 
       // Guardar en colecciones especializadas
@@ -472,6 +476,14 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
         savePromises.push(
           saveDiaryNote(state.currentEntry.diaryNote)
             .catch(err => console.error('❌ Error guardando nota:', err))
+        )
+      }
+
+      // 7. Historia del día / Cierre narrativo (si existe)
+      if (state.currentEntry.dayStory?.mostSignificant) {
+        savePromises.push(
+          saveDayStory(state.currentEntry.dayStory)
+            .catch(err => console.error('❌ Error guardando historia del día:', err))
         )
       }
 
@@ -587,6 +599,9 @@ export const useDayloStore = create<DayloStore>((set, get) => ({
       activityHistory: [],
       timeHistory: [],
     })
+    // Limpiar localStorage al hacer logout
+    localStorage.removeItem('daylo-last-active-date')
+    localStorage.removeItem('daylo-last-checkin')
     console.log('🔄 Store reseteado por logout')
   },
 }))

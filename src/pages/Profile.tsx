@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Calendar, Award, TrendingUp, Heart, LogOut, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import Avatar from '../components/Avatar'
 import HistoryLog from '../components/HistoryLog'
+import LogoutConfirmModal from '../components/modals/LogoutConfirmModal'
 import { getAllUserEntries } from '../services/firebaseService'
 import { useDayloStore } from '../store/dayloStore'
 
@@ -32,6 +33,7 @@ export default function Profile() {
     favoriteActivity: '',
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   useEffect(() => {
     loadUserStats()
@@ -145,28 +147,26 @@ export default function Profile() {
   }
 
   const handleLogout = () => {
-    if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      // Guardar flag de sesión cerrada
-      sessionStorage.setItem('daylo-just-logged-out', 'true')
-      
-      // Resetear el store de Zustand PRIMERO
-      resetStore()
-      
-      // Limpiar TODAS las claves relacionadas
-      localStorage.removeItem('daylo-user-name')
-      localStorage.removeItem('daylo-user-email')
-      localStorage.removeItem('daylo-entries')
-      localStorage.removeItem('daylo-last-checkin')
-      localStorage.removeItem('daylo-activity-history')
-      localStorage.removeItem('daylo-time-history')
-      localStorage.removeItem('daylo-onboarding-complete')  // CRÍTICO: permitir nuevo onboarding
-      localStorage.removeItem('userName')  // Legacy
-      localStorage.removeItem('userEmail') // Legacy
-      
-      // Recargar la aplicación desde la raíz
-      window.location.href = window.location.pathname
-      window.location.reload()
-    }
+    // Guardar flag de sesión cerrada
+    sessionStorage.setItem('daylo-just-logged-out', 'true')
+    
+    // Resetear el store de Zustand PRIMERO
+    resetStore()
+    
+    // Limpiar TODAS las claves relacionadas
+    localStorage.removeItem('daylo-user-name')
+    localStorage.removeItem('daylo-user-email')
+    localStorage.removeItem('daylo-entries')
+    localStorage.removeItem('daylo-last-checkin')
+    localStorage.removeItem('daylo-activity-history')
+    localStorage.removeItem('daylo-time-history')
+    localStorage.removeItem('daylo-onboarding-complete')  // CRÍTICO: permitir nuevo onboarding
+    localStorage.removeItem('userName')  // Legacy
+    localStorage.removeItem('userEmail') // Legacy
+    
+    // Recargar la aplicación desde la raíz
+    window.location.href = window.location.pathname
+    window.location.reload()
   }
 
   return (
@@ -355,13 +355,23 @@ export default function Profile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          onClick={handleLogout}
+          onClick={() => setShowLogoutModal(true)}
           className="w-full bg-white hover:bg-red-50 border border-red-200 text-red-600 font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           Cerrar Sesión
         </motion.button>
       </div>
+
+      {/* Modal de confirmación de logout */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <LogoutConfirmModal
+            onConfirm={handleLogout}
+            onCancel={() => setShowLogoutModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

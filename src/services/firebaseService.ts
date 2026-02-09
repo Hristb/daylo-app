@@ -13,10 +13,17 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { DailyEntry, ActivityLog, TimeLog, Activity, Task } from '../types';
+import { sanitizeText, sanitizeName, sanitizeNote, isValidEmail } from '../utils/sanitizer';
 
 // Obtener el email del usuario (identificador único)
 const getUserEmail = (): string => {
-  return localStorage.getItem('daylo-user-email') || 'anonymous';
+  const email = localStorage.getItem('daylo-user-email') || 'anonymous';
+  // Validar email antes de usarlo
+  if (email !== 'anonymous' && !isValidEmail(email)) {
+    console.error('⚠️ Email inválido detectado');
+    return 'anonymous';
+  }
+  return email;
 };
 
 // Verificar si un usuario existe por email
@@ -42,10 +49,20 @@ export const getUserByEmail = async (email: string): Promise<{ name: string; ema
 // Crear o actualizar usuario
 export const createOrUpdateUser = async (name: string, email: string): Promise<void> => {
   try {
+    // Validar y sanitizar inputs
+    if (!isValidEmail(email)) {
+      throw new Error('Email inválido');
+    }
+    
+    const sanitizedName = sanitizeName(name);
+    if (!sanitizedName || sanitizedName.length < 2) {
+      throw new Error('Nombre debe tener al menos 2 caracteres');
+    }
+    
     const userDoc = doc(db, 'users', email);
     await setDoc(userDoc, {
-      name,
-      email,
+      name: sanitizedName,
+      email: email.toLowerCase(), // Normalizar email
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     }, { merge: true });
@@ -111,7 +128,14 @@ export const getTodayEntry = async (): Promise<DailyEntry | null> => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return docSnap.data() as DailyEntry;
+      const data = docSnap.data() as DailyEntry;
+      // Validar que la fecha del documento sea realmente de hoy
+      const docDate = new Date(data.date).toISOString().split('T')[0];
+      if (docDate !== today) {
+        console.warn('⚠️ Documento encontrado pero no es del día actual:', docDate, 'vs', today);
+        return null;
+      }
+      return data;
     }
     return null;
   } catch (error) {
@@ -340,10 +364,17 @@ export const saveUserObjectives = async (objectives: {
       throw new Error('Email de usuario no encontrado');
     }
 
+    // Sanitizar todos los campos de texto
+    const sanitizedObjectives = {
+      currentGoal: sanitizeText(objectives.currentGoal, 500),
+      futureVision: sanitizeText(objectives.futureVision, 500),
+      mainObstacle: sanitizeText(objectives.mainObstacle, 500),
+    };
+
     const docRef = doc(db, 'user_objectives', userEmail);
     await setDoc(docRef, {
       userEmail,
-      ...objectives,
+      ...sanitizedObjectives,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     }, { merge: true });
@@ -437,6 +468,11 @@ export const getDailyIntention = async (date?: string): Promise<{
     
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Validar que la fecha del documento coincida
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de intención no coincide:', data.date, 'vs', targetDate);
+        return null;
+      }
       return {
         intention: data.intention,
         feelingContext: data.feelingContext,
@@ -502,6 +538,11 @@ export const getDailyActivities = async (date?: string): Promise<Activity[]> => 
     
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Validar que la fecha del documento coincida con la solicitada
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de documento no coincide:', data.date, 'vs', targetDate);
+        return [];
+      }
       return data.activities || [];
     }
     return [];
@@ -570,6 +611,11 @@ export const getDailyEmotion = async (date?: string): Promise<{
     
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Validar que la fecha del documento coincida
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de emoción no coincide:', data.date, 'vs', targetDate);
+        return null;
+      }
       return {
         feeling: data.feeling,
         shareThoughts: data.shareThoughts,
@@ -626,6 +672,11 @@ export const getTasks = async (date?: string): Promise<Task[]> => {
     
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Validar que la fecha del documento coincida
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de tareas no coincide:', data.date, 'vs', targetDate);
+        return [];
+      }
       return data.tasks || [];
     }
     return [];
@@ -646,13 +697,15 @@ export const saveDiaryNote = async (note: string): Promise<void> => {
     const today = new Date().toISOString().split('T')[0];
     const docId = `${userEmail}_${today}`;
     
-    const wordCount = note.trim().split(/\s+/).length;
+    // Sanitizar nota antes de guardar
+    const sanitizedNote = sanitizeNote(note);
+    const wordCount = sanitizedNote.trim().split(/\s+/).length;
 
     const docRef = doc(db, 'diary_notes', docId);
     await setDoc(docRef, {
       userEmail,
       date: today,
-      note,
+      note: sanitizedNote,
       wordCount,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -676,11 +729,87 @@ export const getDiaryNote = async (date?: string): Promise<string | null> => {
     
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Validar que la fecha del documento coincida
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de nota no coincide:', data.date, 'vs', targetDate);
+        return null;
+      }
       return data.note || null;
     }
     return null;
   } catch (error) {
     console.error('❌ Error obteniendo nota de diario:', error);
+    return null;
+  }
+};
+
+// Guardar historia del día (cierre narrativo)
+export const saveDayStory = async (dayStory: {
+  howStarted?: string
+  mostSignificant?: string
+  howClosing?: string
+}): Promise<void> => {
+  try {
+    const userEmail = getUserEmail();
+    if (!userEmail || userEmail === 'anonymous') {
+      throw new Error('Email de usuario no encontrado');
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const docId = `${userEmail}_${today}`;
+    
+    // Sanitizar todos los campos
+    const sanitizedStory = {
+      howStarted: dayStory.howStarted ? sanitizeText(dayStory.howStarted) : undefined,
+      mostSignificant: dayStory.mostSignificant ? sanitizeText(dayStory.mostSignificant) : undefined,
+      howClosing: dayStory.howClosing ? sanitizeText(dayStory.howClosing) : undefined,
+    };
+
+    const docRef = doc(db, 'day_stories', docId);
+    await setDoc(docRef, {
+      userEmail,
+      date: today,
+      ...sanitizedStory,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+
+    console.log('✅ Historia del día guardada:', docId);
+  } catch (error) {
+    console.error('❌ Error guardando historia del día:', error);
+    throw error;
+  }
+};
+
+export const getDayStory = async (date?: string): Promise<{
+  howStarted?: string
+  mostSignificant?: string
+  howClosing?: string
+} | null> => {
+  try {
+    const userEmail = getUserEmail();
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const docId = `${userEmail}_${targetDate}`;
+    
+    const docRef = doc(db, 'day_stories', docId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Validar que la fecha del documento coincida
+      if (data.date && data.date !== targetDate) {
+        console.warn('⚠️ Fecha de historia no coincide:', data.date, 'vs', targetDate);
+        return null;
+      }
+      return {
+        howStarted: data.howStarted,
+        mostSignificant: data.mostSignificant,
+        howClosing: data.howClosing,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ Error obteniendo historia del día:', error);
     return null;
   }
 };
