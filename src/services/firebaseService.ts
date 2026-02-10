@@ -5,6 +5,7 @@ import {
   setDoc, 
   getDoc, 
   getDocs, 
+  deleteDoc,
   query, 
   where,
   orderBy,
@@ -1026,5 +1027,171 @@ export const getDashboardData = async (month?: string): Promise<any | null> => {
   } catch (error) {
     console.error('❌ Error obteniendo dashboard data:', error);
     return null;
+  }
+};
+
+// 9. CALENDAR EVENTS (eventos y recordatorios del calendario)
+export const saveCalendarEvent = async (event: {
+  date: string;
+  type: 'event' | 'reminder' | 'important-date';
+  description: string;
+  completed?: boolean;
+}): Promise<{ id: string } | null> => {
+  try {
+    const userEmail = getUserEmail();
+    if (!userEmail || userEmail === 'anonymous') {
+      console.error('❌ No se puede guardar: Email de usuario no encontrado');
+      throw new Error('Email de usuario no encontrado');
+    }
+
+    // Validar y sanitizar descripción
+    const sanitizedDescription = sanitizeText(event.description);
+    if (!sanitizedDescription || sanitizedDescription.length < 3) {
+      throw new Error('La descripción debe tener al menos 3 caracteres');
+    }
+
+    const eventData = {
+      userEmail,
+      date: event.date, // YYYY-MM-DD format
+      type: event.type,
+      description: sanitizedDescription,
+      completed: event.completed || false,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+
+    const eventsRef = collection(db, 'calendar_events');
+    const docRef = await addDoc(eventsRef, eventData);
+    
+    console.log('✅ Evento de calendario guardado en Firebase:', docRef.id);
+    console.log('📋 Detalles del evento:', {
+      id: docRef.id,
+      date: event.date,
+      type: event.type,
+      description: sanitizedDescription,
+      userEmail
+    });
+    return { id: docRef.id };
+  } catch (error) {
+    console.error('❌ Error guardando evento de calendario:', error);
+    console.error('🔍 Detalles completos del error:', error);
+    return null;
+  }
+};
+
+export const getCalendarEvents = async (): Promise<any[]> => {
+  try {
+    const userEmail = getUserEmail();
+    if (!userEmail || userEmail === 'anonymous') {
+      console.warn('⚠️ Usuario no identificado, no se pueden cargar eventos');
+      return [];
+    }
+
+    console.log('🔍 Cargando eventos de calendario para:', userEmail);
+
+    const eventsRef = collection(db, 'calendar_events');
+    // Simplificada: solo filtrar por userEmail (sin orderBy para evitar índice compuesto)
+    const q = query(
+      eventsRef, 
+      where('userEmail', '==', userEmail)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const events: any[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const eventData = {
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+      };
+      events.push(eventData);
+      console.log('📌 Evento cargado:', {
+        id: doc.id,
+        date: doc.data().date,
+        type: doc.data().type,
+        description: doc.data().description
+      });
+    });
+
+    // Ordenar por fecha en el cliente
+    events.sort((a, b) => {
+      if (a.date < b.date) return -1;
+      if (a.date > b.date) return 1;
+      return 0;
+    });
+
+    console.log(`✅ ${events.length} eventos de calendario cargados desde Firebase`);
+    return events;
+  } catch (error) {
+    console.error('❌ Error obteniendo eventos de calendario:', error);
+    console.error('🔍 Detalles completos del error:', error);
+    return [];
+  }
+};
+
+export const deleteCalendarEvent = async (eventId: string): Promise<boolean> => {
+  try {
+    const userEmail = getUserEmail();
+    if (!userEmail || userEmail === 'anonymous') {
+      throw new Error('Email de usuario no encontrado');
+    }
+
+    // Primero verificar que el evento pertenece al usuario
+    const eventRef = doc(db, 'calendar_events', eventId);
+    const eventSnap = await getDoc(eventRef);
+    
+    if (!eventSnap.exists()) {
+      console.error('❌ Evento no encontrado');
+      return false;
+    }
+
+    const eventData = eventSnap.data();
+    if (eventData.userEmail !== userEmail) {
+      console.error('❌ No tienes permiso para eliminar este evento');
+      return false;
+    }
+
+    await deleteDoc(eventRef);
+    console.log('✅ Evento eliminado de Firebase:', eventId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error eliminando evento:', error);
+    return false;
+  }
+};
+
+export const toggleCalendarEvent = async (eventId: string, completed: boolean): Promise<boolean> => {
+  try {
+    const userEmail = getUserEmail();
+    if (!userEmail || userEmail === 'anonymous') {
+      throw new Error('Email de usuario no encontrado');
+    }
+
+    const eventRef = doc(db, 'calendar_events', eventId);
+    const eventSnap = await getDoc(eventRef);
+    
+    if (!eventSnap.exists()) {
+      console.error('❌ Evento no encontrado');
+      return false;
+    }
+
+    const eventData = eventSnap.data();
+    if (eventData.userEmail !== userEmail) {
+      console.error('❌ No tienes permiso para modificar este evento');
+      return false;
+    }
+
+    await setDoc(eventRef, {
+      completed,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+
+    console.log('✅ Estado de evento actualizado en Firebase:', eventId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error actualizando estado de evento:', error);
+    return false;
   }
 };

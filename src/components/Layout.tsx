@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, Link } from 'react-router-dom'
 import Navigation from './Navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
@@ -117,18 +117,20 @@ export default function Layout() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {userName ? (
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Avatar 
-                    name={userName} 
-                    email={localStorage.getItem('daylo-user-email') || ''} 
-                    size={44}
-                    className="shadow-lg cursor-pointer"
-                  />
-                </motion.div>
+                <Link to="/perfil">
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Avatar 
+                      name={userName} 
+                      email={localStorage.getItem('daylo-user-email') || ''} 
+                      size={44}
+                      className="shadow-lg cursor-pointer"
+                    />
+                  </motion.div>
+                </Link>
               ) : (
                 <motion.div
                   className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-pink to-pastel-purple flex items-center justify-center shadow-lg"

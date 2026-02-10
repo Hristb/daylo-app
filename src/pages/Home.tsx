@@ -132,21 +132,9 @@ export default function Home() {
     }
     loadTodayData()
 
-    // Mostrar EmotionalCheckIn automáticamente:
-    // - UNA VEZ AL DÍA para todos los usuarios
-    // - No importa la hora, solo si ya se completó hoy
-    const today = new Date().toISOString().split('T')[0]
-    const lastCheckIn = localStorage.getItem('daylo-last-checkin')
-    
-    // Mostrar solo si NO ha completado el check-in HOY
-    const shouldShowCheckIn = lastCheckIn !== today
-    
-    if (shouldShowCheckIn) {
-      setTimeout(() => {
-        setShowEmotionalCheckIn(true)
-        setModalOpen(true) // Ocultar navegación
-      }, 1000)
-    }
+    // EmotionalCheckIn automático DESACTIVADO
+    // Los usuarios pueden entrar directamente sin modal
+    // El check-in emocional estará disponible como opción manual si se necesita en el futuro
   }, [])
 
   const handleActivityClick = (activityOption: ActivityOption) => {

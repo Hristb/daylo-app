@@ -93,3 +93,12 @@ export interface TimeLog {
   timestamp: Date
   date: string
 }
+
+export interface CalendarEvent {
+  id: string
+  date: string // YYYY-MM-DD format
+  type: 'event' | 'reminder' | 'important-date'
+  description: string
+  completed: boolean
+  createdAt: Date
+}

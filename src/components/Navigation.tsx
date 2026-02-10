@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, BarChart3, User } from 'lucide-react'
+import { Home, BarChart3, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDayloStore } from '../store/dayloStore'
 
@@ -7,8 +7,8 @@ export default function Navigation() {
   const isModalOpen = useDayloStore((state) => state.isModalOpen)
   const navItems = [
     { path: '/hoy', icon: Home, label: 'Hoy' },
+    { path: '/calendario', icon: Calendar, label: 'Calendario' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
-    { path: '/perfil', icon: User, label: 'Perfil' },
   ]
 
   return (

@@ -73,5 +73,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    
+    // Eventos del calendario - por usuario
+    match /calendar_events/{eventId} {
+      allow read, write: if true; // Temporal - en producción validar userEmail
+      allow create: if request.resource.data.userEmail is string;
+    }
   }
 }
