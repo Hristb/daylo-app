@@ -54,7 +54,7 @@ export default function ActivityIcon({
       whileHover={{ scale: 1.1, rotate: 5 }}
       whileTap={{ scale: 0.9 }}
     >
-      <Icon size={size} color={color} strokeWidth={2.5} />
+      <Icon size={size} color={color} strokeWidth={1.5} />
     </motion.div>
   )
 }

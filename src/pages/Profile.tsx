@@ -265,28 +265,28 @@ export default function Profile() {
                 icon={<Calendar className="w-5 h-5" />}
                 label="Días registrados"
                 value={stats.totalDays}
-                color="from-blue-400 to-cyan-400"
+                color="from-purple-300 to-purple-400"
               />
               <StatCard
                 icon={<TrendingUp className="w-5 h-5" />}
                 label="Racha actual"
                 value={stats.currentStreak}
                 suffix=" días"
-                color="from-green-400 to-emerald-400"
+                color="from-pink-300 to-pink-400"
               />
               <StatCard
                 icon={<Award className="w-5 h-5" />}
                 label="Mejor racha"
                 value={stats.longestStreak}
                 suffix=" días"
-                color="from-yellow-400 to-orange-400"
+                color="from-blue-300 to-blue-400"
               />
               <StatCard
                 icon={<Heart className="w-5 h-5" />}
                 label="Promedio día"
                 value={stats.averageRating.toFixed(1)}
                 suffix="/5"
-                color="from-pink-400 to-rose-400"
+                color="from-indigo-300 to-indigo-400"
               />
             </div>
 
