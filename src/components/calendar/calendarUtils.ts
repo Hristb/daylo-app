@@ -1,5 +1,3 @@
-import { DailyEntry } from '../../types'
-
 // Obtener fecha actual en timezone de Perú (America/Lima, UTC-5)
 export function getPeruDate(): Date {
   const now = new Date()

@@ -14,7 +14,6 @@ import {
   getDaysInMonth,
   getFirstDayOfMonth,
   getMonthName,
-  getDayOfWeekShort,
   formatDate,
   calculateStreak,
   getPeruDate
@@ -184,8 +183,8 @@ export default function HeatMapCalendar() {
       transition={{ delay: 0.2 }}
       className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header - Desktop: dos líneas, Mobile: una línea compacta */}
+      <div className="hidden sm:flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Calendar className="w-6 h-6 text-purple-500" />
           <h2 className="text-2xl font-bold text-gray-800">Mi Calendario</h2>
@@ -199,8 +198,8 @@ export default function HeatMapCalendar() {
         </button>
       </div>
       
-      {/* Navegación de mes */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Navegación de mes - Desktop */}
+      <div className="hidden sm:flex items-center justify-between mb-6">
         <button
           onClick={goToPreviousMonth}
           className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -220,6 +219,38 @@ export default function HeatMapCalendar() {
         </button>
       </div>
       
+      {/* Header Compacto Mobile - Todo en una línea */}
+      <div className="sm:hidden flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-purple-500" />
+          <h3 className="text-base font-bold text-gray-800">
+            {getMonthName(month)} {year}
+          </h3>
+        </div>
+        
+        <button
+          onClick={goToToday}
+          className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold uppercase transition"
+        >
+          Hoy
+        </button>
+        
+        <div className="flex gap-1">
+          <button
+            onClick={goToPreviousMonth}
+            className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition"
+          >
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <button
+            onClick={goToNextMonth}
+            className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition"
+          >
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+      </div>
+      
       {/* Días de la semana */}
       <div className="grid grid-cols-7 gap-2 mb-2">
         {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, index) => (
@@ -237,27 +268,31 @@ export default function HeatMapCalendar() {
         {calendarDays}
       </div>
       
-      {/* Leyenda */}
-      <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-purple-400" />
-          <span>Excelente</span>
+      {/* Leyenda de tipos de días */}
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs text-gray-600 py-3 sm:py-4 border-t border-b border-gray-100 mb-4">
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-lg bg-white border-2 border-purple-300 shadow-sm" />
+          <span className="hidden sm:inline">Día actual</span>
+          <span className="sm:hidden">Hoy</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-purple-300" />
-          <span>Muy bueno</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-yellow-100 via-pink-100 to-purple-100 border border-yellow-200" />
+          <span className="hidden sm:inline">Fecha importante</span>
+          <span className="sm:hidden">Importante</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-pink-300" />
-          <span>Bueno</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-lg bg-purple-50 border border-purple-100" />
+          <span className="hidden sm:inline">Con actividades</span>
+          <span className="sm:hidden">Activo</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-blue-200" />
-          <span>Normal</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-lg bg-blue-100 border border-blue-200" />
+          <span>Futuro</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gray-100 border border-gray-200" />
-          <span>Sin registro</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-lg bg-gray-50 border border-gray-200" />
+          <span className="hidden sm:inline">Sin registro</span>
+          <span className="sm:hidden">Vacío</span>
         </div>
       </div>
       

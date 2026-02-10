@@ -26,7 +26,6 @@ export default function CalendarDay({ date, dayNumber, entry, events, onClick }:
   // Detectar tipo de evento más importante
   const hasImportantDate = events.some(e => e.type === 'important-date')
   const hasReminder = events.some(e => e.type === 'reminder')
-  const hasRegularEvent = events.some(e => e.type === 'event')
   
   // Color de fondo base o especial para día importante
   let colorClass = hasRealEntry ? getDayColor(entry) : 'bg-white hover:bg-gray-50/50'
@@ -36,7 +35,7 @@ export default function CalendarDay({ date, dayNumber, entry, events, onClick }:
     colorClass = 'bg-gradient-to-br from-yellow-50/80 via-pink-50/60 to-purple-50/80 hover:from-yellow-100/90 hover:via-pink-100/70 hover:to-purple-100/90'
   } else if (hasImportantDate && !isFutureDay) {
     // Día importante pasado - más discreto
-    colorClass = hasEntry ? getDayColor(entry) : 'bg-purple-50/40 hover:bg-purple-100/50'
+    colorClass = hasRealEntry ? getDayColor(entry) : 'bg-purple-50/40 hover:bg-purple-100/50'
   }
   
   return (
